@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>ZB</title>
+<title>ZB - Floating Dictionary</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap');
 
@@ -43,8 +43,7 @@ html, body {
   position: fixed;
   inset: 0;
   z-index: 10;
-  display: flex;
-  flex-direction: column;
+  display: flex; flex-direction: column;
   pointer-events: none;
 }
 #ui > * { pointer-events: all; }
@@ -52,7 +51,7 @@ html, body {
 #topbar { padding: 20px; display: flex; justify-content: space-between; align-items: center; }
 #logo { font-weight: 900; font-size: 24px; letter-spacing: -1px; }
 
-#center { flex: 1; pointer-events: none; } /* Clear area for words */
+#center { flex: 1; pointer-events: none; }
 
 #input-area { padding: 0 20px 20px; display: flex; gap: 10px; align-items: center; }
 #word-input { 
@@ -66,11 +65,7 @@ html, body {
 }
 #launch-btn svg { fill: #fff; }
 
-/* Moved Up: Color Toggles */
-#marks { 
-  padding: 0 20px 100px; /* Higher padding to clear system navigation */
-  display: flex; gap: 12px; justify-content: center; 
-}
+#marks { padding: 0 20px 100px; display: flex; gap: 12px; justify-content: center; }
 
 .color-toggle {
   width: 46px; height: 46px; border-radius: 50%;
@@ -80,16 +75,20 @@ html, body {
 }
 .color-toggle.active { border-color: #000; transform: scale(1.15); }
 
-/* Stored Panel */
 #stored-panel {
   position: fixed; inset: 0; z-index: 20; background: #fff;
   transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex; flex-direction: column; color: #000;
 }
 #stored-panel.open { transform: translateY(0); }
-#stored-words { padding: 20px; display: flex; flex-wrap: wrap; gap: 10px; overflow-y: auto; }
+#stored-words { padding: 20px; display: flex; flex-wrap: wrap; gap: 10px; overflow-y: auto; flex: 1; }
 .stored-item { padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 600; border: 1px solid rgba(0,0,0,0.1); }
 .close-btn { padding: 25px; font-size: 32px; border: none; background: none; align-self: flex-end; cursor: pointer; }
+
+#clear-storage {
+  margin: 20px; padding: 12px; background: #ff3b30; color: #fff; 
+  border: none; border-radius: 12px; font-weight: 600; cursor: pointer;
+}
 </style>
 </head>
 <body>
@@ -101,16 +100,13 @@ html, body {
     <div id="logo">ZB</div>
     <button id="stored-toggle" style="background:#000; color:#fff; border:none; padding:10px 20px; border-radius:999px; font-weight:600; font-size:13px;">Stored</button>
   </div>
-
   <div id="center"></div>
-
   <div id="input-area">
     <input id="word-input" type="text" placeholder="Type a word..." autocomplete="off">
     <button id="launch-btn">
       <svg width="24" height="24" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
     </button>
   </div>
-
   <div id="marks">
     <div class="color-toggle" data-color="#000000" data-text="#ffffff" style="background:#000000;"></div>
     <div class="color-toggle" data-color="#ff3b30" data-text="#ffffff" style="background:#ff3b30;"></div>
@@ -125,15 +121,19 @@ html, body {
   <button class="close-btn" id="stored-close">×</button>
   <div style="padding:0 24px; font-weight:900; font-size:24px; letter-spacing:-0.5px;">Dictionary</div>
   <div id="stored-words"></div>
+  <button id="clear-storage">Clear Dictionary</button>
 </div>
 
 <script>
 let nodes = [];
-let storedWords = []; 
+// Persistent storage logic
+let storedWords = JSON.parse(localStorage.getItem('zb_dictionary')) || []; 
 let activeColor = '#ffffff';
 let activeTextColor = '#000000';
 
-// Toggle Logic: Exclusive Selection
+// Initialize dictionary UI on load
+updateStoredUI();
+
 document.querySelectorAll('.color-toggle').forEach(t => {
   t.onclick = () => {
     document.querySelectorAll('.color-toggle').forEach(el => el.classList.remove('active'));
@@ -145,16 +145,12 @@ document.querySelectorAll('.color-toggle').forEach(t => {
 
 function launchWord(text) {
   if (!text.trim()) return;
-
   const el = document.createElement('div');
   el.className = 'word-node';
   el.textContent = text;
-  
-  // Apply current toggle colors to the floating word
   el.style.backgroundColor = activeColor;
   el.style.color = activeTextColor;
 
-  // Random middle-ish position
   const x = Math.random() * (window.innerWidth - 120) + 60;
   const y = Math.random() * (window.innerHeight - 300) + 150;
   document.getElementById('field').appendChild(el);
@@ -162,21 +158,17 @@ function launchWord(text) {
   const nodeObj = { el, x, y, dx: (Math.random()-0.5)*1.8, dy: (Math.random()-0.5)*1.8 };
   nodes.push(nodeObj);
 
-  // --- 5 SECOND TIMER ---
   setTimeout(() => {
-    // 1. "Pop" Animation
     el.style.transform += ' scale(2)';
     el.style.opacity = '0';
-    
-    // 2. Remove from Physics engine
     nodes = nodes.filter(n => n !== nodeObj);
-
-    // 3. Store the Word + its specific color
+    
+    // Save word permanently
     storedWords.push({ text, color: activeColor, textColor: activeTextColor });
+    localStorage.setItem('zb_dictionary', JSON.stringify(storedWords));
+    
     updateStoredUI();
-
-    // 4. Cleanup DOM
-    setTimeout(() => el.remove(), 10000);
+    setTimeout(() => el.remove(), 2000);
   }, 10000);
 }
 
@@ -189,10 +181,18 @@ function updateStoredUI() {
   `).join('');
 }
 
+// Clear Storage Logic
+document.getElementById('clear-storage').onclick = () => {
+  if(confirm("Clear all stored words?")) {
+    storedWords = [];
+    localStorage.removeItem('zb_dictionary');
+    updateStoredUI();
+  }
+};
+
 function animate() {
   nodes.forEach(n => {
     n.x += n.dx; n.y += n.dy;
-    // Bounce logic
     if (n.x < 0 || n.x > window.innerWidth - 100) n.dx *= -1;
     if (n.y < 0 || n.y > window.innerHeight - 200) n.dy *= -1;
     n.el.style.transform = `translate(${n.x}px, ${n.y}px)`;
@@ -200,15 +200,9 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-// Event Listeners
 const btn = document.getElementById('launch-btn');
 const input = document.getElementById('word-input');
-
-function handleSend() {
-  launchWord(input.value);
-  input.value = '';
-}
-
+function handleSend() { launchWord(input.value); input.value = ''; }
 btn.onclick = handleSend;
 input.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
 
