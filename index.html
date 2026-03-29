@@ -100,10 +100,19 @@ html, body {
 <div id="field"></div>
 
 <div id="ui">
-  <div id="topbar">
+  <div id="topbar" style="display: flex; align-items: center; justify-content: space-between;">
     <div id="logo">ZB</div>
-    <button id="stored-toggle" style="background:#000; color:#fff; border:none; padding:10px 20px; border-radius:999px; font-weight:600; font-size:13px;">Stored</button>
+  
+    <div style="display: flex; gap: 10px; align-items: center;">
+    <a href="zb_ask_key_3.html" style="text-decoration: none; background: #000; color: #666; border: 1px solid #333; padding: 10px 20px; border-radius: 999px; font-weight: 600; font-size: 13px; transition: 0.3s;">
+      zb_ask_key
+    </a>
+
+    <button id="stored-toggle" style="background: #000; color: #fff; border: none; padding: 10px 20px; border-radius: 999px; font-weight: 600; font-size: 13px; cursor: pointer;">
+      Stored
+    </button>
   </div>
+</div>
   <div id="center"></div>
   <div id="input-area">
     <input id="word-input" type="text" placeholder="Type a word..." autocomplete="off">
