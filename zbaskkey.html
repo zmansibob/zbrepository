@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>zb_ask_key - Zmansi Scale</title>
+    <style>
+        /* Exact Style from your index.html */
+        body { background: #000; color: #fff; font-family: 'Courier New', Courier, monospace; text-align: center; padding: 50px; }
+        h1 { font-size: 22px; margin-bottom: 40px; letter-spacing: 2px; color: #eee; }
+        input { font-size: 24px; padding: 15px; background: #000; color: #0f0; border: 1px solid #0f0; width: 70%; margin-bottom: 50px; outline: none; text-align: center; }
+        .row { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+        .box { padding: 20px; border: 1px solid; border-radius: 4px; min-width: 160px; text-align: center; transition: all 0.2s ease; }
+        .label-main { font-size: 18px; font-weight: bold; display: block; margin-bottom: 5px; }
+        .label-sub { font-size: 11px; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Navigation Button Style */
+        .nav-btn { position: absolute; top: 20px; left: 20px; padding: 10px 20px; border: 1px solid #444; color: #888; text-decoration: none; font-size: 12px; }
+        .nav-btn:hover { border-color: #eee; color: #eee; }
+
+        /* Colors */
+        .black  { border-color: #222; color: #444; } 
+        .red    { border-color: #ff0000; color: #ff0000; } 
+        .yellow { border-color: #ffff00; color: #ffff00; } 
+        .green  { border-color: #00ff00; color: #00ff00; } 
+        .blue   { border-color: #0000ff; color: #0000ff; } 
+        .white  { border-color: #ffffff; color: #ffffff; box-shadow: 0 0 15px #fff; }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="nav-btn">← BACK TO MAIN</a>
+    <h1>from I don't know Meditation to zmansi WHITE CAMEL bob</h1>
+    
+    <input type="text" id="engine" placeholder='_ . , ; " @' autofocus>
+    <div id="output" class="row"></div>
+
+    <script>
+        const states = {
+            '00': { name: 'SILENCE', cls: 'red' },
+            '01': { name: 'BREATH', cls: 'yellow' },
+            '10': { name: 'SIMPLE', cls: 'green' },
+            '11': { name: 'COMPLEX', cls: 'blue' }
+        };
+
+        document.getElementById('engine').addEventListener('input', (e) => {
+            const val = e.target.value;
+            let html = '';
+            if (val.length > 0) {
+                const char = val[val.length - 1];
+                const bin = char.charCodeAt(0).toString(2).padStart(8, '0');
+                html += `<div class="box black"><span class="label-main">I DON'T KNOW</span><span class="label-sub">Meditation (0)</span></div>`;
+                const pairs = [bin.slice(2,4), bin.slice(4,6), bin.slice(6,8)];
+                pairs.forEach((p) => {
+                    const s = states[p];
+                    html += `<div class="box ${s.cls}"><span class="label-main">${s.name}</span><span class="label-sub">PAIR ${p}</span></div>`;
+                });
+                if (bin.split('1').length > 3 || char.charCodeAt(0) === 64) {
+                    html += `<div class="box white"><span class="label-main">ZMANSI WHITE</span><span class="label-sub">Camel Bob (6)</span></div>`;
+                }
+            }
+            document.getElementById('output').innerHTML = html;
+        });
+    </script>
+</body>
+</html>
