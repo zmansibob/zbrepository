@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ZB</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --mode-bg: #ffffff;
+  --mode-text: #000000;
+  --mode-border: rgba(0,0,0,0.1);
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+  background: var(--mode-bg);
+  color: var(--mode-text);
+  transition: background 0.5s;
+}
+
+#field { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+.word-node {
+  position: absolute;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.5s;
+  will-change: transform;
+  border: 1.5px solid rgba(255,255,255,0.2);
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+#ui > * { pointer-events: all; }
+
+#topbar { padding: 20px; display: flex; justify-content: space-between; align-items: center; }
+#logo { font-weight: 900; font-size: 24px; letter-spacing: -1px; }
+
+#center { flex: 1; pointer-events: none; } /* Clear area for words */
+
+#input-area { padding: 0 20px 20px; display: flex; gap: 10px; align-items: center; }
+#word-input { 
+  flex: 1; background: rgba(0,0,0,0.06); border: 1.5px solid var(--mode-border); 
+  border-radius: 999px; padding: 14px 22px; font-size: 16px; outline: none; 
+}
+
+#launch-btn { 
+  width: 52px; height: 52px; border-radius: 50%; background: #000; 
+  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; 
+}
+#launch-btn svg { fill: #fff; }
+
+/* Moved Up: Color Toggles */
+#marks { 
+  padding: 0 20px 100px; /* Higher padding to clear system navigation */
+  display: flex; gap: 12px; justify-content: center; 
+}
+
+.color-toggle {
+  width: 46px; height: 46px; border-radius: 50%;
+  border: 3px solid transparent; cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+.color-toggle.active { border-color: #000; transform: scale(1.15); }
+
+/* Stored Panel */
+#stored-panel {
+  position: fixed; inset: 0; z-index: 20; background: #fff;
+  transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex; flex-direction: column; color: #000;
+}
+#stored-panel.open { transform: translateY(0); }
+#stored-words { padding: 20px; display: flex; flex-wrap: wrap; gap: 10px; overflow-y: auto; }
+.stored-item { padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 600; border: 1px solid rgba(0,0,0,0.1); }
+.close-btn { padding: 25px; font-size: 32px; border: none; background: none; align-self: flex-end; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div id="field"></div>
+
+<div id="ui">
+  <div id="topbar">
+    <div id="logo">ZB</div>
+    <button id="stored-toggle" style="background:#000; color:#fff; border:none; padding:10px 20px; border-radius:999px; font-weight:600; font-size:13px;">Stored</button>
+  </div>
+
+  <div id="center"></div>
+
+  <div id="input-area">
+    <input id="word-input" type="text" placeholder="Type a word..." autocomplete="off">
+    <button id="launch-btn">
+      <svg width="24" height="24" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+
+  <div id="marks">
+    <div class="color-toggle" data-color="#000000" data-text="#ffffff" style="background:#000000;"></div>
+    <div class="color-toggle" data-color="#ff3b30" data-text="#ffffff" style="background:#ff3b30;"></div>
+    <div class="color-toggle" data-color="#ffcc00" data-text="#000000" style="background:#ffcc00;"></div>
+    <div class="color-toggle" data-color="#34c759" data-text="#ffffff" style="background:#34c759;"></div>
+    <div class="color-toggle" data-color="#007aff" data-text="#ffffff" style="background:#007aff;"></div>
+    <div class="color-toggle active" data-color="#ffffff" data-text="#000000" style="background:#ffffff;"></div>
+  </div>
+</div>
+
+<div id="stored-panel">
+  <button class="close-btn" id="stored-close">×</button>
+  <div style="padding:0 24px; font-weight:900; font-size:24px; letter-spacing:-0.5px;">Dictionary</div>
+  <div id="stored-words"></div>
+</div>
+
+<script>
+let nodes = [];
+let storedWords = []; 
+let activeColor = '#ffffff';
+let activeTextColor = '#000000';
+
+// Toggle Logic: Exclusive Selection
+document.querySelectorAll('.color-toggle').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.color-toggle').forEach(el => el.classList.remove('active'));
+    t.classList.add('active');
+    activeColor = t.dataset.color;
+    activeTextColor = t.dataset.text;
+  };
+});
+
+function launchWord(text) {
+  if (!text.trim()) return;
+
+  const el = document.createElement('div');
+  el.className = 'word-node';
+  el.textContent = text;
+  
+  // Apply current toggle colors to the floating word
+  el.style.backgroundColor = activeColor;
+  el.style.color = activeTextColor;
+
+  // Random middle-ish position
+  const x = Math.random() * (window.innerWidth - 120) + 60;
+  const y = Math.random() * (window.innerHeight - 300) + 150;
+  document.getElementById('field').appendChild(el);
+
+  const nodeObj = { el, x, y, dx: (Math.random()-0.5)*1.8, dy: (Math.random()-0.5)*1.8 };
+  nodes.push(nodeObj);
+
+  // --- 5 SECOND TIMER ---
+  setTimeout(() => {
+    // 1. "Pop" Animation
+    el.style.transform += ' scale(2)';
+    el.style.opacity = '0';
+    
+    // 2. Remove from Physics engine
+    nodes = nodes.filter(n => n !== nodeObj);
+
+    // 3. Store the Word + its specific color
+    storedWords.push({ text, color: activeColor, textColor: activeTextColor });
+    updateStoredUI();
+
+    // 4. Cleanup DOM
+    setTimeout(() => el.remove(), 10000);
+  }, 10000);
+}
+
+function updateStoredUI() {
+  const container = document.getElementById('stored-words');
+  container.innerHTML = storedWords.map(item => `
+    <div class="stored-item" style="background:${item.color}; color:${item.textColor};">
+      ${item.text}
+    </div>
+  `).join('');
+}
+
+function animate() {
+  nodes.forEach(n => {
+    n.x += n.dx; n.y += n.dy;
+    // Bounce logic
+    if (n.x < 0 || n.x > window.innerWidth - 100) n.dx *= -1;
+    if (n.y < 0 || n.y > window.innerHeight - 200) n.dy *= -1;
+    n.el.style.transform = `translate(${n.x}px, ${n.y}px)`;
+  });
+  requestAnimationFrame(animate);
+}
+
+// Event Listeners
+const btn = document.getElementById('launch-btn');
+const input = document.getElementById('word-input');
+
+function handleSend() {
+  launchWord(input.value);
+  input.value = '';
+}
+
+btn.onclick = handleSend;
+input.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
+
+document.getElementById('stored-toggle').onclick = () => document.getElementById('stored-panel').classList.add('open');
+document.getElementById('stored-close').onclick = () => document.getElementById('stored-panel').classList.remove('open');
+
+animate();
+</script>
+</body>
+</html>
