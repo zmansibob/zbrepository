@@ -84,10 +84,15 @@ html, body {
 .stored-item { padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 600; border: 1px solid rgba(0,0,0,0.1); }
 .close-btn { padding: 25px; font-size: 32px; border: none; background: none; align-self: flex-end; cursor: pointer; }
 
-#clear-storage {
-  margin: 20px; padding: 12px; background: #ff3b30; color: #fff; 
-  border: none; border-radius: 12px; font-weight: 600; cursor: pointer;
+/* New Footer Buttons */
+.panel-actions {
+  display: flex; gap: 10px; padding: 20px; border-top: 1px solid #eee;
 }
+.action-btn {
+  flex: 1; padding: 15px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer;
+}
+#export-btn { background: #007aff; color: #fff; }
+#clear-storage { background: #ff3b30; color: #fff; }
 </style>
 </head>
 <body>
@@ -120,12 +125,14 @@ html, body {
   <button class="close-btn" id="stored-close">×</button>
   <div style="padding:0 24px; font-weight:900; font-size:24px; letter-spacing:-0.5px;">Dictionary</div>
   <div id="stored-words"></div>
-  <button id="clear-storage">Clear Dictionary</button>
+  <div class="panel-actions">
+    <button id="export-btn" class="action-btn">Export .TXT</button>
+    <button id="clear-storage" class="action-btn">Clear All</button>
+  </div>
 </div>
 
 <script>
 let nodes = [];
-// 1. Load data from the browser's local storage immediately
 let storedWords = JSON.parse(localStorage.getItem('zb_dictionary')) || []; 
 let activeColor = '#ffffff';
 let activeTextColor = '#000000';
@@ -143,6 +150,12 @@ document.querySelectorAll('.color-toggle').forEach(t => {
 
 function launchWord(text) {
   if (!text.trim()) return;
+
+  // 1. SAVE IMMEDIATELY (So refresh doesn't lose data)
+  storedWords.push({ text, color: activeColor, textColor: activeTextColor });
+  localStorage.setItem('zb_dictionary', JSON.stringify(storedWords));
+  updateStoredUI();
+
   const el = document.createElement('div');
   el.className = 'word-node';
   el.textContent = text;
@@ -160,12 +173,6 @@ function launchWord(text) {
     el.style.transform += ' scale(2)';
     el.style.opacity = '0';
     nodes = nodes.filter(n => n !== nodeObj);
-    
-    // 2. Save word to the list and sync with LocalStorage
-    storedWords.push({ text, color: activeColor, textColor: activeTextColor });
-    localStorage.setItem('zb_dictionary', JSON.stringify(storedWords));
-    
-    updateStoredUI();
     setTimeout(() => el.remove(), 2000);
   }, 10000);
 }
@@ -179,9 +186,18 @@ function updateStoredUI() {
   `).join('');
 }
 
-// 3. Logic to clear the saved dictionary
+// EXPORT LOGIC
+document.getElementById('export-btn').onclick = () => {
+  if (storedWords.length === 0) return alert("Nothing to export!");
+  const blob = new Blob([storedWords.map(i => `${i.text} | Color: ${i.color}`).join('\n')], {type: 'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'zb-dictionary.txt';
+  a.click();
+};
+
 document.getElementById('clear-storage').onclick = () => {
-  if(confirm("Wipe your dictionary? This cannot be undone.")) {
+  if(confirm("Clear everything?")) {
     storedWords = [];
     localStorage.removeItem('zb_dictionary');
     updateStoredUI();
