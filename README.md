@@ -1,5 +1,8 @@
 # ZB - Floating Dictionary
 
+## 🔗 Live Demo
+View the app live here: [https://zmansibob.github.io/zbrepository/](https://zmansibob.github.io/zbrepository/)
+
 A minimalist, interactive web application where words become physical objects. Type a word, watch it drift, and see it join your collection.
 
 ## 🚀 Features
