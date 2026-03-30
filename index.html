@@ -106,6 +106,10 @@ html, body {
 .z-quote { background: #007aff !important; color: #ffffff !important; border-color: #004 !important; }
 .z-at { background: #ffffff !important; color: #000000 !important; border-color: #ddd !important; }
 
+.word-node span, .stored-item span {
+  display: inline-block;
+  line-height: 1.2;
+}
 </style>
 </head>
 <body>
@@ -156,15 +160,9 @@ html, body {
 <script>
 let nodes = [];
 let storedWords = JSON.parse(localStorage.getItem('zb_dictionary')) || [];
-let activeColor = '#ffffff';
-let activeTextColor = '#000000';
-let activeZClass = 'z-at';
 
-const input = document.getElementById('word-input');
-const btn = document.getElementById('launch-btn');
-
-const zScheme = {
-  '0': { color: '#000000', text: '#ffffff', class: 'z-0' },
+const zbScheme = {
+  ' ': { color: '#000000', text: '#ffffff', class: 'z-0' },
   '.': { color: '#ff3b30', text: '#ffffff', class: 'z-dot' },
   ',': { color: '#ffcc00', text: '#000000', class: 'z-comma' },
   ';': { color: '#34c759', text: '#ffffff', class: 'z-semi' },
@@ -172,21 +170,37 @@ const zScheme = {
   '@': { color: '#ffffff', text: '#000000', class: 'z-at' }
 };
 
-updateStoredUI();
+// Initialize with Default (@)
+let activeColor = zbScheme['@'].color;
+let activeTextColor = zbScheme['@'].text;
+let activeZClass = zbScheme['@'].class;
 
-// 1. INPUT AUTO-COLOR LOGIC
-input.oninput = () => {
-  const firstChar = input.value.charAt(0);
-  if (zScheme[firstChar]) {
-    applyTheme(zScheme[firstChar]);
-    // Sync the "Marks" toggles visually
-    document.querySelectorAll('.color-toggle').forEach(el => {
-      el.classList.toggle('active', el.dataset.sign === firstChar);
-    });
-  } else {
-    input.classList.remove('z-active');
-  }
-};
+const input = document.getElementById('word-input');
+const btn = document.getElementById('launch-btn');
+
+// --- 1. CORE LOGIC FUNCTIONS ---
+
+function wrapComplexText(text) {
+  // Splits by Master Signs
+  const tokens = text.split(/([ .,;"@])/g);
+  return tokens.map(token => {
+    const theme = zbScheme[token];
+    if (theme) {
+      return `<span class="${theme.class}" style="padding: 0 4px; border-radius: 4px; margin: 0 1px;">${token}</span>`;
+    }
+    return token;
+  }).join('');
+}
+
+function updateStoredUI() {
+  const container = document.getElementById('stored-words');
+  if (!container) return;
+  container.innerHTML = storedWords.map(item => `
+    <div class="stored-item ${item.zClass || ''}" style="background:${item.color}; color:${item.textColor};">
+      ${wrapComplexText(item.text)}
+    </div>
+  `).join('');
+}
 
 function applyTheme(theme) {
   activeColor = theme.color;
@@ -196,27 +210,18 @@ function applyTheme(theme) {
   input.classList.add('z-active');
 }
 
-// 2. MANUAL TOGGLE LOGIC (Matches Python triggers)
-document.querySelectorAll('.color-toggle').forEach(t => {
-  t.onclick = () => {
-    const sign = t.dataset.sign;
-    applyTheme(zScheme[sign]);
-    document.querySelectorAll('.color-toggle').forEach(el => el.classList.remove('active'));
-    t.classList.add('active');
-  };
-});
-
 function launchWord(text) {
   if (!text.trim()) return;
 
-  // Use current active theme
+  // Save to LocalStorage
   storedWords.push({ text, color: activeColor, textColor: activeTextColor, zClass: activeZClass });
   localStorage.setItem('zb_dictionary', JSON.stringify(storedWords));
   updateStoredUI();
 
+  // Create Floating Element
   const el = document.createElement('div');
   el.className = `word-node ${activeZClass}`;
-  el.textContent = text;
+  el.innerHTML = wrapComplexText(text); // Use Complex Splitter
 
   const x = Math.random() * (window.innerWidth - 120) + 60;
   const y = Math.random() * (window.innerHeight - 300) + 150;
@@ -225,6 +230,7 @@ function launchWord(text) {
   const nodeObj = { el, x, y, dx: (Math.random()-0.5)*1.8, dy: (Math.random()-0.5)*1.8 };
   nodes.push(nodeObj);
 
+  // Animation Out
   setTimeout(() => {
     el.style.transform += ' scale(2)';
     el.style.opacity = '0';
@@ -233,19 +239,63 @@ function launchWord(text) {
   }, 10000);
 }
 
-function updateStoredUI() {
-  const container = document.getElementById('stored-words');
-  container.innerHTML = storedWords.map(item => `
-    <div class="stored-item ${item.zClass || ''}" style="background:${item.color}; color:${item.textColor};">
-      ${item.text}
-    </div>
-  `).join('');
+// --- 2. EVENT LISTENERS ---
+input.oninput = () => {
+  const val = input.value;
+  if (!val) {
+    input.classList.remove('z-active');
+    return;
+  }
+
+  // Look for the last character that matches a Zmansi sign
+  let lastSign = null;
+  for (let i = val.length - 1; i >= 0; i--) {
+    if (zbScheme[val[i]]) {
+      lastSign = val[i];
+      break;
+    }
+  }
+
+  if (lastSign) {
+    applyTheme(zbScheme[lastSign]);
+
+    // Sync the "Marks" toggles visually to the current active sign
+    document.querySelectorAll('.color-toggle').forEach(el => {
+      el.classList.toggle('active', el.dataset.sign === lastSign);
+    });
+  } else {
+    // If no sign is found (defaulting or non-sign text)
+    input.classList.remove('z-active');
+  }
+};
+
+document.querySelectorAll('.color-toggle').forEach(t => {
+  t.onclick = () => {
+    applyTheme(zbScheme[t.dataset.sign]);
+    document.querySelectorAll('.color-toggle').forEach(el => el.classList.remove('active'));
+    t.classList.add('active');
+  };
+});
+
+function handleSend() {
+  launchWord(input.value);
+  input.value = '';
+  // Force the UI to reset the border indicator immediately
+  input.classList.remove('z-active');
+  document.querySelectorAll('.color-toggle').forEach(el => el.classList.remove('active'));
 }
 
-// EXPORT & UI
+btn.onclick = handleSend;
+input.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
+
+// --- 3. UI & ANIMATION LOOP ---
+
+document.getElementById('stored-toggle').onclick = () => document.getElementById('stored-panel').classList.add('open');
+document.getElementById('stored-close').onclick = () => document.getElementById('stored-panel').classList.remove('open');
+
 document.getElementById('export-btn').onclick = () => {
-  if (storedWords.length === 0) return alert("Nothing to export!");
-  const blob = new Blob([storedWords.map(i => `${i.text}`).join('\n')], {type: 'text/plain'});
+  if (storedWords.length === 0) return;
+  const blob = new Blob([storedWords.map(i => i.text).join('\n')], {type: 'text/plain'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'zb-dictionary.txt';
@@ -270,18 +320,8 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-function handleSend() {
-    launchWord(input.value);
-    input.value = '';
-    // Do not reset the color immediately so the user can keep typing in the same theme
-}
-
-btn.onclick = handleSend;
-input.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
-
-document.getElementById('stored-toggle').onclick = () => document.getElementById('stored-panel').classList.add('open');
-document.getElementById('stored-close').onclick = () => document.getElementById('stored-panel').classList.remove('open');
-
+// Initial Run
+updateStoredUI();
 animate();
 </script>
 </body>
