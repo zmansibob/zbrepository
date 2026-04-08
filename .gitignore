@@ -3,3 +3,13 @@ __pycache__/
 *.pyc
 *.pyo
 .DS_Store
+
+# Virtual Environment
+.venv/
+
+# Local Audio Library (Do not upload generated wavs)
+audio_cache/
+
+# Model files (if any are downloaded locally)
+*.pth
+*.json

@@ -1,328 +1,427 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>ZB - Floating Dictionary</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap');
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ZB - Floating Dictionary</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap');
 
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-:root {
-  --mode-bg: #ffffff;
-  --mode-text: #000000;
-  --mode-border: rgba(0,0,0,0.1);
-  --z-color: #ffffff; /* Dynamic variable for input border */
-}
+        :root {
+            --mode-bg: #ffffff;
+            --mode-text: #000000;
+            --mode-border: rgba(0, 0, 0, 0.1);
+            --z-color: #ffffff;
+        }
 
-html, body {
-  height: 100%;
-  font-family: 'Inter', sans-serif;
-  overflow: hidden;
-  background: var(--mode-bg);
-  color: var(--mode-text);
-}
+        html, body {
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            background: #f4f4f9;
+            color: var(--mode-text);
+        }
 
-#field { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+        #field {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+        }
 
-.word-node {
-  position: absolute;
-  font-size: 16px;
-  font-weight: 600;
-  padding: 10px 20px;
-  border-radius: 999px;
-  white-space: nowrap;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.5s;
-  will-change: transform;
-  border: 1.5px solid rgba(255,255,255,0.2);
-}
+        /* Floating Nodes */
+        .word-node {
+            position: absolute;
+            font-size: 16px;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 999px;
+            white-space: nowrap;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.5s;
+            will-change: transform;
+            border: 1.5px solid rgba(255, 255, 255, 0.2);
+        }
 
-#ui {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  display: flex; flex-direction: column;
-  pointer-events: none;
-}
-#ui > * { pointer-events: all; }
+        #ui {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            pointer-events: none;
+        }
 
-#topbar { padding: 20px; display: flex; justify-content: space-between; align-items: center; }
-#logo { font-weight: 900; font-size: 24px; letter-spacing: -1px; }
+        #ui > * {
+            pointer-events: all;
+        }
 
-#center { flex: 1; pointer-events: none; }
+        #topbar {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-#input-area { padding: 0 20px 20px; display: flex; gap: 10px; align-items: center; }
-#word-input {
-  flex: 1; background: rgba(0,0,0,0.06); border: 1.5px solid var(--mode-border);
-  border-radius: 999px; padding: 14px 22px; font-size: 16px; outline: none;
-  transition: border-left 0.2s;
-}
+        #logo {
+            font-weight: 900;
+            font-size: 24px;
+            letter-spacing: -1px;
+        }
 
-/* Subtle indicator for the input field */
-#word-input.z-active { border-left: 12px solid var(--z-color); }
+        /* Menu */
+        .menu-wrapper {
+            position: relative;
+        }
 
-#launch-btn {
-  width: 52px; height: 52px; border-radius: 50%; background: #000;
-  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
-}
-#launch-btn svg { fill: #fff; }
+        .expand-btn {
+            width: 44px;
+            height: 44px;
+            background: #000;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
 
-#marks { padding: 0 20px 100px; display: flex; gap: 12px; justify-content: center; }
+        .inner-circle {
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+        }
 
-.color-toggle {
-  width: 46px; height: 46px; border-radius: 50%;
-  border: 3px solid transparent; cursor: pointer;
-  transition: transform 0.2s, border-color 0.2s;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.15);
-}
-.color-toggle.active { border-color: #000; transform: scale(1.15); }
+        .dropdown {
+            position: absolute;
+            top: 55px;
+            right: 0;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            display: none;
+            flex-direction: column;
+            min-width: 180px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            overflow: hidden;
+        }
 
-#stored-panel {
-  position: fixed; inset: 0; z-index: 20; background: #fff;
-  transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex; flex-direction: column; color: #000;
-}
-#stored-panel.open { transform: translateY(0); }
-#stored-words { padding: 20px; display: flex; flex-wrap: wrap; gap: 10px; overflow-y: auto; flex: 1; }
-.stored-item { padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 600; border: 1px solid rgba(0,0,0,0.1); }
-.close-btn { padding: 25px; font-size: 32px; border: none; background: none; align-self: flex-end; cursor: pointer; }
+        .dropdown.active {
+            display: flex;
+        }
 
-.panel-actions {
-  display: flex; gap: 10px; padding: 20px; border-top: 1px solid #eee;
-}
-.action-btn {
-  flex: 1; padding: 15px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer;
-}
-#export-btn { background: #007aff; color: #fff; }
-#clear-storage { background: #ff3b30; color: #fff; }
+        .dropdown a, .dropdown button {
+            padding: 14px 18px;
+            text-decoration: none;
+            color: #000;
+            font-weight: 600;
+            font-size: 14px;
+            border: none;
+            background: none;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+        }
 
-/* Zmansi 0-5 Master Overrides */
-.z-0 { background: #000000 !important; color: #ffffff !important; border-color: #333 !important; }
-.z-dot { background: #ff3b30 !important; color: #ffffff !important; border-color: #700 !important; }
-.z-comma { background: #ffcc00 !important; color: #000000 !important; border-color: #880 !important; }
-.z-semi { background: #34c759 !important; color: #ffffff !important; border-color: #050 !important; }
-.z-quote { background: #007aff !important; color: #ffffff !important; border-color: #004 !important; }
-.z-at { background: #ffffff !important; color: #000000 !important; border-color: #ddd !important; }
+        /* Input Area */
+        #input-area {
+            padding: 0 20px 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
 
-.word-node span, .stored-item span {
-  display: inline-block;
-  line-height: 1.2;
-}
-</style>
+        #word-input {
+            flex: 1;
+            background: #fff;
+            border: 1.5px solid var(--mode-border);
+            border-radius: 999px;
+            padding: 14px 22px;
+            font-size: 16px;
+            outline: none;
+            transition: border-left 0.2s;
+        }
+
+        #word-input.z-active {
+            border-left: 12px solid var(--z-color) !important;
+        }
+
+        #launch-btn {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: #000;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #launch-btn svg {
+            fill: #fff;
+        }
+
+        /* Color Toggles */
+        #marks {
+            padding: 0 20px 100px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .color-toggle {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .color-toggle.active {
+            border-color: #000;
+            transform: scale(1.15);
+        }
+
+        /* Stored Panel */
+        #stored-panel {
+            position: fixed;
+            inset: 0;
+            z-index: 20;
+            background: #fff;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            color: #000;
+        }
+
+        #stored-panel.open {
+            transform: translateY(0);
+        }
+
+        /* Fix for the stretching bars in the dictionary */
+        #stored-words {
+            align-items: flex-start; /* Key fix: prevents children from stretching to full height */
+            align-content: flex-start;
+        }
+
+        .stored-item {
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            height: fit-content; /* Hugs the text height */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Zmansi Classes */
+        .z-0 {
+            background: #000000 !important;
+            color: #ffffff !important;
+        }
+
+        .z-dot {
+            background: #ff3b30 !important;
+            color: #ffffff !important;
+        }
+
+        .z-comma {
+            background: #ffcc00 !important;
+            color: #000000 !important;
+        }
+
+        .z-semi {
+            background: #34c759 !important;
+            color: #ffffff !important;
+        }
+
+        .z-quote {
+            background: #007aff !important;
+            color: #ffffff !important;
+        }
+
+        .z-at {
+            background: #ffffff !important;
+            color: #000000 !important;
+            border: 1px solid #ddd !important;
+        }
+    </style>
 </head>
 <body>
 
 <div id="field"></div>
 
 <div id="ui">
-  <div id="topbar" style="display: flex; align-items: center; justify-content: space-between;">
-    <div id="logo">ZB</div>
-
-    <div style="display: flex; gap: 10px; align-items: center;">
-      <a href="zbaskkey.html" style="text-decoration: none; background: #000; color: #666; border: 1px solid #333; padding: 10px 20px; border-radius: 999px; font-weight: 600; font-size: 13px; transition: 0.3s;">
-        zbaskkey
-      </a>
-
-      <button id="stored-toggle" style="background: #000; color: #fff; border: none; padding: 10px 20px; border-radius: 999px; font-weight: 600; font-size: 13px; cursor: pointer;">
-        Stored
-      </button>
+    <div id="topbar">
+        <div id="logo">ZB</div>
+        <div class="menu-wrapper">
+            <button class="expand-btn" onclick="document.getElementById('dd').classList.toggle('active')">
+                <div class="inner-circle"></div>
+            </button>
+            <div id="dd" class="dropdown">
+                <a href="zbaskkey.html">Ask Key ?</a>
+                <a href="zb_voiceme.html">Voice Reader 🎙️</a>
+                <button onclick="document.getElementById('stored-panel').classList.add('open')">Stored Dictionary
+                </button>
+            </div>
+        </div>
     </div>
-  </div>
-  <div id="center"></div>
-  <div id="input-area">
-    <input id="word-input" type="text" placeholder="Type a word..." autocomplete="off">
-    <button id="launch-btn">
-      <svg width="24" height="24" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-    </button>
-  </div>
-  <div id="marks">
-    <div class="color-toggle" data-sign="0" data-color="#000000" data-text="#ffffff" style="background:#000000;"></div>
-    <div class="color-toggle" data-sign="." data-color="#ff3b30" data-text="#ffffff" style="background:#ff3b30;"></div>
-    <div class="color-toggle" data-sign="," data-color="#ffcc00" data-text="#000000" style="background:#ffcc00;"></div>
-    <div class="color-toggle" data-sign=";" data-color="#34c759" data-text="#ffffff" style="background:#34c759;"></div>
-    <div class="color-toggle" data-sign='"' data-color="#007aff" data-text="#ffffff" style="background:#007aff;"></div>
-    <div class="color-toggle active" data-sign="@" data-color="#ffffff" data-text="#000000" style="background:#ffffff;"></div>
-  </div>
+    <div style="flex:1;"></div>
+    <div id="input-area">
+        <input id="word-input" type="text" placeholder="Type a word..." autocomplete="off">
+        <button id="launch-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+        </button>
+    </div>
+    <div id="marks">
+        <div class="color-toggle" data-sign=" " style="background:#000000;"></div>
+        <div class="color-toggle" data-sign="." style="background:#ff3b30;"></div>
+        <div class="color-toggle" data-sign="," style="background:#ffcc00;"></div>
+        <div class="color-toggle" data-sign=";" style="background:#34c759;"></div>
+        <div class="color-toggle" data-sign='"' style="background:#007aff;"></div>
+        <div class="color-toggle active" data-sign="@" style="background:#ffffff; border:1px solid #ddd;"></div>
+    </div>
 </div>
 
 <div id="stored-panel">
-  <button class="close-btn" id="stored-close">×</button>
-  <div style="padding:0 24px; font-weight:900; font-size:24px; letter-spacing:-0.5px;">Dictionary</div>
-  <div id="stored-words"></div>
-  <div class="panel-actions">
-    <button id="export-btn" class="action-btn">Export .TXT</button>
-    <button id="clear-storage" class="action-btn">Clear All</button>
-  </div>
+    <button onclick="document.getElementById('stored-panel').classList.remove('open')"
+            style="padding:20px; border:none; background:none; font-size:24px; cursor:pointer;">✕
+    </button>
+    <div style="padding:0 24px; font-weight:900; font-size:24px;">Dictionary</div>
+    <div id="stored-words" style="padding:20px; flex:1; overflow-y:auto; display:flex; flex-wrap:wrap; gap:10px;"></div>
 </div>
 
 <script>
-let nodes = [];
-let storedWords = JSON.parse(localStorage.getItem('zb_dictionary')) || [];
+    let nodes = [];
+    let storedWords = JSON.parse(localStorage.getItem('zb_dictionary')) || [];
 
-const zbScheme = {
-  ' ': { color: '#000000', text: '#ffffff', class: 'z-0' },
-  '.': { color: '#ff3b30', text: '#ffffff', class: 'z-dot' },
-  ',': { color: '#ffcc00', text: '#000000', class: 'z-comma' },
-  ';': { color: '#34c759', text: '#ffffff', class: 'z-semi' },
-  '"': { color: '#007aff', text: '#ffffff', class: 'z-quote' },
-  '@': { color: '#ffffff', text: '#000000', class: 'z-at' }
-};
+    const zbScheme = {
+        ' ': {color: '#000000', text: '#ffffff', class: 'z-0'},
+        '.': {color: '#ff3b30', text: '#ffffff', class: 'z-dot'},
+        ',': {color: '#ffcc00', text: '#000000', class: 'z-comma'},
+        ';': {color: '#34c759', text: '#ffffff', class: 'z-semi'},
+        '"': {color: '#007aff', text: '#ffffff', class: 'z-quote'},
+        '@': {color: '#ffffff', text: '#000000', class: 'z-at'}
+    };
 
-// Initialize with Default (@)
-let activeColor = zbScheme['@'].color;
-let activeTextColor = zbScheme['@'].text;
-let activeZClass = zbScheme['@'].class;
+    let activeColor = zbScheme['@'].color;
+    let activeZClass = zbScheme['@'].class;
+    const input = document.getElementById('word-input');
 
-const input = document.getElementById('word-input');
-const btn = document.getElementById('launch-btn');
-
-// --- 1. CORE LOGIC FUNCTIONS ---
-
-function wrapComplexText(text) {
-  // Splits by Master Signs
-  const tokens = text.split(/([ .,;"@])/g);
-  return tokens.map(token => {
-    const theme = zbScheme[token];
-    if (theme) {
-      return `<span class="${theme.class}" style="padding: 0 4px; border-radius: 4px; margin: 0 1px;">${token}</span>`;
+    function wrapComplexText(text) {
+        const tokens = text.split(/([ .,;"@])/g);
+        return tokens.map(token => {
+            const theme = zbScheme[token];
+            return theme ? `<span class="${theme.class}" style="padding: 0 4px; border-radius: 4px;">${token}</span>` : token;
+        }).join('');
     }
-    return token;
-  }).join('');
-}
 
-function updateStoredUI() {
-  const container = document.getElementById('stored-words');
-  if (!container) return;
-  container.innerHTML = storedWords.map(item => `
-    <div class="stored-item ${item.zClass || ''}" style="background:${item.color}; color:${item.textColor};">
-      ${wrapComplexText(item.text)}
-    </div>
-  `).join('');
-}
-
-function applyTheme(theme) {
-  activeColor = theme.color;
-  activeTextColor = theme.text;
-  activeZClass = theme.class;
-  input.style.setProperty('--z-color', activeColor);
-  input.classList.add('z-active');
-}
-
-function launchWord(text) {
-  if (!text.trim()) return;
-
-  // Save to LocalStorage
-  storedWords.push({ text, color: activeColor, textColor: activeTextColor, zClass: activeZClass });
-  localStorage.setItem('zb_dictionary', JSON.stringify(storedWords));
-  updateStoredUI();
-
-  // Create Floating Element
-  const el = document.createElement('div');
-  el.className = `word-node ${activeZClass}`;
-  el.innerHTML = wrapComplexText(text); // Use Complex Splitter
-
-  const x = Math.random() * (window.innerWidth - 120) + 60;
-  const y = Math.random() * (window.innerHeight - 300) + 150;
-  document.getElementById('field').appendChild(el);
-
-  const nodeObj = { el, x, y, dx: (Math.random()-0.5)*1.8, dy: (Math.random()-0.5)*1.8 };
-  nodes.push(nodeObj);
-
-  // Animation Out
-  setTimeout(() => {
-    el.style.transform += ' scale(2)';
-    el.style.opacity = '0';
-    nodes = nodes.filter(n => n !== nodeObj);
-    setTimeout(() => el.remove(), 2000);
-  }, 10000);
-}
-
-// --- 2. EVENT LISTENERS ---
-input.oninput = () => {
-  const val = input.value;
-  if (!val) {
-    input.classList.remove('z-active');
-    return;
-  }
-
-  // Look for the last character that matches a Zmansi sign
-  let lastSign = null;
-  for (let i = val.length - 1; i >= 0; i--) {
-    if (zbScheme[val[i]]) {
-      lastSign = val[i];
-      break;
+    function updateStoredUI() {
+        const container = document.getElementById('stored-words');
+        container.innerHTML = storedWords.map(item => `
+        <div class="stored-item ${item.zClass || ''}"
+             style="background:${item.color}; color:${item.textColor};">
+            ${wrapComplexText(item.text)}
+        </div>
+    `).join('');
     }
-  }
 
-  if (lastSign) {
-    applyTheme(zbScheme[lastSign]);
+    function applyTheme(sign) {
+        const theme = zbScheme[sign];
+        if (!theme) return;
+        activeColor = theme.color;
+        activeZClass = theme.class;
+        input.style.setProperty('--z-color', activeColor);
+        input.classList.add('z-active');
+        document.querySelectorAll('.color-toggle').forEach(el => el.classList.toggle('active', el.dataset.sign === sign));
+    }
 
-    // Sync the "Marks" toggles visually to the current active sign
-    document.querySelectorAll('.color-toggle').forEach(el => {
-      el.classList.toggle('active', el.dataset.sign === lastSign);
-    });
-  } else {
-    // If no sign is found (defaulting or non-sign text)
-    input.classList.remove('z-active');
-  }
-};
+    input.oninput = () => {
+        const val = input.value;
+        if (!val) {
+            input.classList.remove('z-active');
+            return;
+        }
+        let lastSign = null;
+        for (let i = val.length - 1; i >= 0; i--) {
+            if (zbScheme[val[i]]) {
+                lastSign = val[i];
+                break;
+            }
+        }
+        if (lastSign) applyTheme(lastSign);
+    };
 
-document.querySelectorAll('.color-toggle').forEach(t => {
-  t.onclick = () => {
-    applyTheme(zbScheme[t.dataset.sign]);
-    document.querySelectorAll('.color-toggle').forEach(el => el.classList.remove('active'));
-    t.classList.add('active');
-  };
-});
+    document.querySelectorAll('.color-toggle').forEach(t => t.onclick = () => applyTheme(t.dataset.sign));
 
-function handleSend() {
-  launchWord(input.value);
-  input.value = '';
-  // Force the UI to reset the border indicator immediately
-  input.classList.remove('z-active');
-  document.querySelectorAll('.color-toggle').forEach(el => el.classList.remove('active'));
-}
+    function handleSend() {
+        const text = input.value;
+        if (!text.trim()) return;
 
-btn.onclick = handleSend;
-input.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
+        storedWords.push({
+            text,
+            color: activeColor,
+            textColor: activeColor === '#ffffff' ? '#000' : '#fff',
+            zClass: activeZClass
+        });
+        localStorage.setItem('zb_dictionary', JSON.stringify(storedWords));
+        updateStoredUI();
 
-// --- 3. UI & ANIMATION LOOP ---
+        const el = document.createElement('div');
+        el.className = `word-node ${activeZClass}`;
+        el.innerHTML = wrapComplexText(text);
+        const x = Math.random() * (window.innerWidth - 150);
+        const y = Math.random() * (window.innerHeight - 300) + 100;
+        document.getElementById('field').appendChild(el);
 
-document.getElementById('stored-toggle').onclick = () => document.getElementById('stored-panel').classList.add('open');
-document.getElementById('stored-close').onclick = () => document.getElementById('stored-panel').classList.remove('open');
+        const nodeObj = {el, x, y, dx: (Math.random() - 0.5) * 2, dy: (Math.random() - 0.5) * 2};
+        nodes.push(nodeObj);
 
-document.getElementById('export-btn').onclick = () => {
-  if (storedWords.length === 0) return;
-  const blob = new Blob([storedWords.map(i => i.text).join('\n')], {type: 'text/plain'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'zb-dictionary.txt';
-  a.click();
-};
+        setTimeout(() => {
+            el.style.opacity = '0';
+            nodes = nodes.filter(n => n !== nodeObj);
+            setTimeout(() => el.remove(), 1000);
+        }, 10000);
 
-document.getElementById('clear-storage').onclick = () => {
-  if(confirm("Clear everything?")) {
-    storedWords = [];
-    localStorage.removeItem('zb_dictionary');
+        input.value = '';
+        input.classList.remove('z-active');
+    }
+
+    document.getElementById('launch-btn').onclick = handleSend;
+    input.onkeypress = (e) => {
+        if (e.key === 'Enter') handleSend();
+    };
+
+    function animate() {
+        nodes.forEach(n => {
+            n.x += n.dx;
+            n.y += n.dy;
+            if (n.x < 0 || n.x > window.innerWidth - 100) n.dx *= -1;
+            if (n.y < 0 || n.y > window.innerHeight - 200) n.dy *= -1;
+            n.el.style.transform = `translate(${n.x}px, ${n.y}px)`;
+        });
+        requestAnimationFrame(animate);
+    }
+
     updateStoredUI();
-  }
-};
-
-function animate() {
-  nodes.forEach(n => {
-    n.x += n.dx; n.y += n.dy;
-    if (n.x < 0 || n.x > window.innerWidth - 100) n.dx *= -1;
-    if (n.y < 0 || n.y > window.innerHeight - 200) n.dy *= -1;
-    n.el.style.transform = `translate(${n.x}px, ${n.y}px)`;
-  });
-  requestAnimationFrame(animate);
-}
-
-// Initial Run
-updateStoredUI();
-animate();
+    animate();
 </script>
 </body>
 </html>
