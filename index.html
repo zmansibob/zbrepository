@@ -217,16 +217,18 @@
             align-content: flex-start;
         }
 
-        .stored-item {
-            padding: 10px 20px;
+        ..stored-item {
+            padding: 10px 12px;
+            padding-right: 35px; /* Space for the clipboard icon */
             border-radius: 999px;
             font-size: 14px;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
             white-space: nowrap;
-            height: fit-content; /* Hugs the text height */
+            height: fit-content;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            position: relative;
         }
 
         /* Zmansi Classes */
@@ -271,7 +273,7 @@
         <div id="logo">ZB</div>
         <div class="menu-wrapper">
             <button class="expand-btn" onclick="document.getElementById('dd').classList.toggle('active')">
-                <div class="inner-circle"></div>
+                <span class="inner-circle"></span>
             </button>
             <div id="dd" class="dropdown">
                 <a href="zb_runher.html">ZB RunHer</a>
@@ -284,7 +286,10 @@
     </div>
     <div style="flex:1;"></div>
     <div id="input-area">
+        <label for="word-input" class="sr-only">&nbsp;</label>
+
         <input id="word-input" type="text" placeholder="Type a word..." autocomplete="off">
+
         <button id="launch-btn">
             <svg width="24" height="24" viewBox="0 0 24 24">
                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
@@ -300,13 +305,37 @@
         <div class="color-toggle active" data-sign="@" style="background:#ffffff; border:1px solid #ddd;"></div>
     </div>
 </div>
-
 <div id="stored-panel">
-    <button onclick="document.getElementById('stored-panel').classList.remove('open')"
-            style="padding:20px; border:none; background:none; font-size:24px; cursor:pointer;">✕
-    </button>
-    <div style="padding:0 24px; font-weight:900; font-size:24px;">Dictionary</div>
-    <div id="stored-words" style="padding:20px; flex:1; overflow-y:auto; display:flex; flex-wrap:wrap; gap:10px;"></div>
+    <div style="display: flex; align-items: center; padding: 10px 15px;">
+        <button onclick="document.getElementById('stored-panel').classList.remove('open')"
+                style="padding: 10px; border: none; background: none; font-size: 24px; cursor: pointer;">✕
+        </button>
+
+        <button onclick="copyAllDictionary()"
+                title="Copy All"
+                style="background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 10px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+        </button>
+
+        <button onclick="clearDictionary()"
+                title="Clear Dictionary"
+                style="background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 10px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff3b30" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+        </button>
+    </div>
+
+    <div style="padding: 0 24px 10px; font-weight: 900; font-size: 24px;">Dictionary</div>
+    <div id="stored-words"
+         style="padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start;"></div>
 </div>
 
 <script>
@@ -336,12 +365,38 @@
 
     function updateStoredUI() {
         const container = document.getElementById('stored-words');
-        container.innerHTML = storedWords.map(item => `
+        container.innerHTML = storedWords.map((item, index) => `
         <div class="stored-item ${item.zClass || ''}"
-             style="background:${item.color}; color:${item.textColor};">
+             style="background:${item.color}; color:${item.textColor}; position: relative; padding-right: 35px;">
             ${wrapComplexText(item.text)}
+            <span onclick="copyToClipboard('${item.text.replace(/'/g, "\\'")}')"
+                  style="position: absolute; right: 8px; cursor: pointer; opacity: 0.7; font-size: 12px;">
+                📋
+            </span>
         </div>
     `).join('');
+    }
+
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            // Optional: brief visual feedback
+            alert("Copied to clipboard");
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+        });
+    }
+
+    function copyAllDictionary() {
+        if (storedWords.length === 0) return alert("Dictionary is empty.");
+
+        // Join all dictionary entries with a new line
+        const allText = storedWords.map(item => item.text).join('\n');
+
+        navigator.clipboard.writeText(allText).then(() => {
+            alert("All dictionary items copied to clipboard.");
+        }).catch(err => {
+            console.error('Failed to copy all: ', err);
+        });
     }
 
     function applyTheme(sign) {
@@ -419,6 +474,21 @@
             n.el.style.transform = `translate(${n.x}px, ${n.y}px)`;
         });
         requestAnimationFrame(animate);
+    }
+
+    function clearDictionary() {
+        if (confirm("Are you sure you want to delete all stored words? This cannot be undone.")) {
+            // Clear the array in memory
+            storedWords = [];
+
+            // Remove the item from your browser's local storage
+            localStorage.removeItem('zb_dictionary');
+
+            // Refresh the visual list (which will now be empty)
+            updateStoredUI();
+
+            alert("Dictionary cleared.");
+        }
     }
 
     updateStoredUI();
