@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZB - Sequential Pixel Morph</title>
+    <style>
+        body {
+            margin: 0;
+            background: #000;
+            overflow: hidden;
+            color: #00ffcc;
+            font-family: monospace;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #status {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        /* Base Button Styles */
+        .home-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            background: rgba(0, 255, 204, 0.1);
+            border: 1px solid #00ffcc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 18px;
+            transition: background 0.3s ease, color 0.1s linear, border-color 0.1s linear, box-shadow 0.3s ease;
+            z-index: 100;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .home-btn:hover {
+            box-shadow: 0 0 15px #00ffcc;
+        }
+    </style>
+</head>
+<body>
+
+<a href="index.html" id="zbBtn" class="home-btn" title="Back to Home">ZB</a>
+<button id="toggleMode" class="home-btn" style="right: 80px; font-size: 20px;" title="Switch Mode">🖼️</button>
+<div id="status">Status: Initializing...</div>
+<canvas id="canvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', {willReadFrequently: true});
+    const status = document.getElementById('status');
+    const zbBtn = document.getElementById('zbBtn');
+    const modeBtn = document.getElementById('toggleMode');
+
+    let particles = [];
+    let shapeData = [];
+    let currentIndex = 0;
+    let useEmojis = false;
+    let isScanning = false;
+
+    const LIGHT_BG = new Set([3, 4, 5]);
+
+    let bgR = 0, bgG = 0, bgB = 0;
+    let destBgR = 0, destBgG = 0, destBgB = 0;
+
+    const v = Date.now();
+    const animalImages = [
+        `img/01_pussycat.png?v=${v}`,
+        `img/02_bitch.png?v=${v}`,
+        `img/03_octopussy.png?v=${v}`,
+        `img/04_octopus.png?v=${v}`,
+        `img/05_dog.png?v=${v}`,
+        `img/06_camel.png?v=${v}`
+    ];
+    const fallbackEmojis = ["🐱", "🐕", "🐙", "🦑", "🐶", "🐪"];
+
+    class Particle {
+        constructor() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.destX = this.x;
+            this.destY = this.y;
+            this.color = '#00ffcc';
+            this.destColor = '#00ffcc';
+            this.ease = 0.08;
+            this.delay = 0;
+        }
+
+        update() {
+            if (this.delay > 0) {
+                this.delay--;
+                return;
+            }
+            this.x += (this.destX - this.x) * this.ease;
+            this.y += (this.destY - this.y) * this.ease;
+            this.color = lerpColor(this.color, this.destColor, 0.05);
+        }
+
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, 2, 2);
+        }
+    }
+
+    function parseColor(c) {
+        if (c[0] === '#') {
+            const n = parseInt(c.slice(1), 16);
+            return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+        }
+        const m = c.match(/\d+/g);
+        return m ? [+m[0], +m[1], +m[2]] : [0, 255, 204];
+    }
+
+    function toRgb(r, g, b) {
+        return `rgb(${r | 0},${g | 0},${b | 0})`;
+    }
+
+    function lerpColor(a, b, t) {
+        const [ar, ag, ab] = parseColor(a);
+        const [br, bg, bb] = parseColor(b);
+        const r = ar + (br - ar) * t;
+        const g = ag + (bg - ag) * t;
+        const b_val = ab + (bb - ab) * t;
+        return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b_val)})`;
+    }
+
+    function extractPoints(data, iw, ih, isLight) {
+        const points = [];
+        const step = 3;
+        const globalOffsetX = (window.innerWidth - iw) / 2;
+        const globalOffsetY = (window.innerHeight - ih) / 2;
+
+        for (let y = 0; y < ih; y += step) {
+            for (let x = 0; x < iw; x += step) {
+                const i = (y * iw + x) * 4;
+                const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+                if (a < 50) continue;
+                const brightness = r * 0.299 + g * 0.587 + b * 0.114;
+                if (isLight && brightness > 220) continue;
+                if (!isLight && brightness < 30) continue;
+
+                points.push({
+                    x: x + globalOffsetX,
+                    y: y + globalOffsetY,
+                    color: toRgb(r, g, b)
+                });
+            }
+        }
+        return points.length > 0 ? points : [{x: canvas.width / 2, y: canvas.height / 2, color: '#00ffcc'}];
+    }
+
+    function scanImage(src, fallback, isLight = false) {
+        return new Promise((resolve) => {
+            const tc = document.createElement('canvas');
+            const tCtx = tc.getContext('2d', {willReadFrequently: true});
+
+            const process = (loadedImg) => {
+                let w, h;
+                const pad = 120;
+                if (loadedImg) {
+                    const iW = loadedImg.width;
+                    const iH = loadedImg.height;
+                    const screenScale = Math.min(canvas.width, canvas.height) * 0.7;
+                    const scale = screenScale / Math.max(iW, iH);
+                    w = Math.floor(iW * scale);
+                    h = Math.floor(iH * scale);
+                    tc.width = w + (pad * 2);
+                    tc.height = h + (pad * 2);
+                    if (isLight) {
+                        tCtx.fillStyle = '#ffffff';
+                        tCtx.fillRect(0, 0, tc.width, tc.height);
+                    }
+                    tCtx.drawImage(loadedImg, pad, pad, w, h);
+                } else {
+                    const size = Math.floor(Math.min(canvas.width, canvas.height) * 0.5);
+                    tc.width = size * 2;
+                    tc.height = size * 2.5;
+                    if (isLight) {
+                        tCtx.fillStyle = '#ffffff';
+                        tCtx.fillRect(0, 0, tc.width, tc.height);
+                    }
+                    tCtx.font = `${size}px serif`;
+                    tCtx.textAlign = 'center';
+                    tCtx.textBaseline = 'middle';
+                    tCtx.fillStyle = isLight ? '#000000' : '#00ffcc';
+                    tCtx.fillText(fallback, tc.width / 2, tc.height / 2.2);
+                }
+                const data = tCtx.getImageData(0, 0, tc.width, tc.height).data;
+                resolve(extractPoints(data, tc.width, tc.height, isLight));
+            };
+
+            if (src && !useEmojis) {
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+                img.onload = () => process(img);
+                img.onerror = () => process(null);
+                img.src = src;
+            } else {
+                process(null);
+            }
+        });
+    }
+
+    async function loadAllShapes() {
+        isScanning = true;
+        shapeData = [];
+        for (let i = 0; i < animalImages.length; i++) {
+            status.innerText = `Status: Scanning ${i + 1}/${animalImages.length}...`;
+            const isLight = LIGHT_BG.has(i);
+            const points = await scanImage(animalImages[i], fallbackEmojis[i], isLight);
+            shapeData.push({points, isLight});
+        }
+        isScanning = false;
+        status.innerText = "Ready. Click to Morph.";
+        morph(currentIndex);
+    }
+
+    function morph(index) {
+        if (isScanning) return;
+        const entry = shapeData[index];
+        if (!entry) return;
+
+        destBgR = entry.isLight ? 255 : 0;
+        destBgG = entry.isLight ? 255 : 0;
+        destBgB = entry.isLight ? 255 : 0;
+
+        particles.forEach((p, i) => {
+            const t = entry.points[i % entry.points.length];
+            p.destX = t.x;
+            p.destY = t.y;
+            p.destColor = t.color;
+            p.delay = i * 0.01;
+        });
+    }
+
+    function animate() {
+        bgR += (destBgR - bgR) * 0.05;
+        bgG += (destBgG - bgG) * 0.05;
+        bgB += (destBgB - bgB) * 0.05;
+
+        ctx.fillStyle = `rgba(${bgR | 0},${bgG | 0},${bgB | 0},0.25)`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Update button colors based on background brightness
+        const brightness = (bgR + bgG + bgB) / 3;
+        const btnColor = brightness > 127 ? "black" : "white";
+        const borderColor = brightness > 127 ? "rgba(0,0,0,0.5)" : "#00ffcc";
+
+        [zbBtn, modeBtn].forEach(btn => {
+            btn.style.color = btnColor;
+            btn.style.borderColor = borderColor;
+        });
+
+        particles.forEach(p => {
+            p.update();
+            p.draw();
+        });
+        requestAnimationFrame(animate);
+    }
+
+    modeBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (isScanning) return;
+        useEmojis = !useEmojis;
+        modeBtn.innerText = useEmojis ? "🐾" : "🖼️";
+        await loadAllShapes();
+    });
+
+    async function startApp() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        particles = [];
+        for (let i = 0; i < 4000; i++) particles.push(new Particle());
+        animate();
+        await loadAllShapes();
+    }
+
+    window.addEventListener('mousedown', e => {
+        if (e.target.closest('.home-btn') || isScanning) return;
+        currentIndex = (currentIndex + 1) % shapeData.length;
+        morph(currentIndex);
+    });
+
+    startApp();
+</script>
+</body>
+</html>
