@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZB - Sequential Pixel Morph</title>
+    <title>ZB - Multilingual Particle Morph</title>
     <style>
         body {
             margin: 0;
@@ -11,6 +11,7 @@
             overflow: hidden;
             color: #00ffcc;
             font-family: monospace;
+            transition: background 0.5s ease;
         }
 
         canvas {
@@ -26,37 +27,72 @@
             opacity: 0.6;
         }
 
-        /* Base Button Styles */
-        .home-btn {
+        .controls {
             position: absolute;
             top: 20px;
             right: 20px;
-            width: 44px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .home-btn, .lang-select {
             height: 44px;
             background: rgba(0, 255, 204, 0.1);
             border: 1px solid #00ffcc;
-            border-radius: 50%;
+            border-radius: 22px;
+            color: #00ffcc;
+            font-weight: bold;
             display: flex;
             align-items: center;
             justify-content: center;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 18px;
-            transition: background 0.3s ease, color 0.1s linear, border-color 0.1s linear, box-shadow 0.3s ease;
-            z-index: 100;
             cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 0 15px;
             outline: none;
         }
 
-        .home-btn:hover {
+        .home-btn {
+            width: 44px;
+            padding: 0;
+            border-radius: 50%;
+        }
+
+        .lang-select {
+            font-family: monospace;
+            appearance: none;
+            text-align: center;
+        }
+
+        .home-btn:hover, .lang-select:hover {
             box-shadow: 0 0 15px #00ffcc;
+        }
+
+        option {
+            background: #000;
+            color: #00ffcc;
         }
     </style>
 </head>
 <body>
 
-<a href="index.html" id="zbBtn" class="home-btn" title="Back to Home">ZB</a>
-<button id="toggleMode" class="home-btn" style="right: 80px; font-size: 20px;" title="Switch Mode">🖼️</button>
+<div class="controls">
+    <label for="langSelect" style="display:none;">Select Language</label>
+    <select id="langSelect" class="lang-select">
+        <option value="0">Zmansi White Camel Bob</option>
+        <option value="1">זמנסי לבן גמל בוב</option>
+        <option value="2">Зманси Белый Верблюд Боб</option>
+        <option value="3">兹曼西 白色 骆驼 鲍勃</option>
+        <option value="4">Zmansi Weißer Kamel Bob</option>
+        <option value="5">Zmansi Camello Blanco Bob</option>
+        <option value="6">زمنسي الجمل الأبيض بوب</option>
+        <option value="7">Zmansi Witte Kameel Bob</option>
+    </select>
+
+    <button id="toggleMode" class="home-btn" title="Switch Mode">&#128247;</button>
+    <a href="index.html" class="home-btn" title="Back to Home">ZB</a>
+</div>
+
 <div id="status">Status: Initializing...</div>
 <canvas id="canvas"></canvas>
 
@@ -64,30 +100,63 @@
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d', {willReadFrequently: true});
     const status = document.getElementById('status');
-    const zbBtn = document.getElementById('zbBtn');
     const modeBtn = document.getElementById('toggleMode');
+    const langSelect = document.getElementById('langSelect');
 
     let particles = [];
     let shapeData = [];
     let currentIndex = 0;
-    let useEmojis = false;
+    let displayMode = 0; // 0: Image, 1: Emoji, 2: Text
     let isScanning = false;
+    let bgIsLight = false; // track background state for animate()
 
-    const LIGHT_BG = new Set([3, 4, 5]);
+    // Items 0, 1, 2: Black BG | Items 3, 4, 5: White BG
+    const LIGHT_BG_INDICES = new Set([3, 4, 5]);
 
-    let bgR = 0, bgG = 0, bgB = 0;
-    let destBgR = 0, destBgG = 0, destBgB = 0;
+    // Text Color Map per index: 0=White, 1=Red, 2=Yellow, 3=Green, 4=Blue, 5=Black
+    const TEXT_COLORS = ["#FFFFFF", "#FF0000", "#FFFF00", "#00FF00", "#0000FF", "#000000"];
 
-    const v = Date.now();
-    const animalImages = [
-        `img/01_pussycat.png?v=${v}`,
-        `img/02_bitch.png?v=${v}`,
-        `img/03_octopussy.png?v=${v}`,
-        `img/04_octopus.png?v=${v}`,
-        `img/05_dog.png?v=${v}`,
-        `img/06_camel.png?v=${v}`
+    const zbMap = [
+        {
+            lang: "English",
+            words: ["I don't know", "Silence", "Breath", "Simple", "Complex", "Zmansi White Camel Bob"]
+        },
+        {
+            lang: "Hebrew",
+            words: ["אני לא יודעת", "שתיקה", "נשימה", "פשוט", "מורכב", "זמנסי גמל לבן בוב"]
+        },
+        {
+            lang: "Russian",
+            words: ["Я не знаю", "Молчание", "Дыхание", "Простой", "Сложный", "Зманси Белый Верблюд Боб"]
+        },
+        {
+            lang: "Hindi",
+            words: ["मुझे नहीं पता", "मौन", "साँस", "सरल", "जटिल", "ज़मन्सी सफेद ऊँट बॉब"]
+        },
+        {
+            lang: "Hungarian",
+            words: ["Nem tudom", "Némaság", "Légzés", "Egyszerű", "Összetett", "Zmansi Fehér Teve Bob"]
+        },
+        {
+            lang: "German",
+            words: ["Ich weiß nicht", "Schweigen", "Atem", "Einfach", "Komplex", "Zmansi Weißer Kamel Bob"]
+        },
+        {
+            lang: "Spanish",
+            words: ["No lo sé", "Silencio", "Respiración", "Simple", "Complejo", "Zmansi Camello Blanco Bob"]
+        },
+        {
+            lang: "Arabic",
+            words: ["لا أعرف", "صمت", "تنفس", "بسيط", "معقد", "زمانسي جمل أبيض بوب"]
+        },
+        {
+            lang: "Dutch",
+            words: ["Ik weet het niet", "Zwijgen", "Adem", "Eenvoudig", "Complex", "Zmansi Witte Kameel Bob"]
+        }
     ];
-    const fallbackEmojis = ["🐱", "🐕", "🐙", "🦑", "🐶", "🐪"];
+
+    const animalImages = [`img/01_pussycat.png`, `img/02_bitch.png`, `img/03_octopussy.png`, `img/04_octopus.png`, `img/05_dog.png`, `img/06_camel.png`];
+    const fallbackEmojis = ["🐱", "🐕", "🐙", "🦑", "🐶", "🐫"];
 
     class Particle {
         constructor() {
@@ -98,17 +167,12 @@
             this.color = '#00ffcc';
             this.destColor = '#00ffcc';
             this.ease = 0.08;
-            this.delay = 0;
         }
 
         update() {
-            if (this.delay > 0) {
-                this.delay--;
-                return;
-            }
             this.x += (this.destX - this.x) * this.ease;
             this.y += (this.destY - this.y) * this.ease;
-            this.color = lerpColor(this.color, this.destColor, 0.05);
+            this.color = this.destColor;
         }
 
         draw() {
@@ -117,155 +181,165 @@
         }
     }
 
-    function parseColor(c) {
-        if (c[0] === '#') {
-            const n = parseInt(c.slice(1), 16);
-            return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-        }
-        const m = c.match(/\d+/g);
-        return m ? [+m[0], +m[1], +m[2]] : [0, 255, 204];
-    }
-
-    function toRgb(r, g, b) {
-        return `rgb(${r | 0},${g | 0},${b | 0})`;
-    }
-
-    function lerpColor(a, b, t) {
-        const [ar, ag, ab] = parseColor(a);
-        const [br, bg, bb] = parseColor(b);
-        const r = ar + (br - ar) * t;
-        const g = ag + (bg - ag) * t;
-        const b_val = ab + (bb - ab) * t;
-        return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b_val)})`;
-    }
-
-    function extractPoints(data, iw, ih, isLight) {
+    function extractPoints(data, iw, ih, customColor = null, isTextMode = false, isLight = false) {
         const points = [];
-        const step = 3;
-        const globalOffsetX = (window.innerWidth - iw) / 2;
-        const globalOffsetY = (window.innerHeight - ih) / 2;
+        const step = isTextMode ? 4 : 2;
 
         for (let y = 0; y < ih; y += step) {
             for (let x = 0; x < iw; x += step) {
                 const i = (y * iw + x) * 4;
                 const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
-                if (a < 50) continue;
-                const brightness = r * 0.299 + g * 0.587 + b * 0.114;
-                if (isLight && brightness > 220) continue;
-                if (!isLight && brightness < 30) continue;
+
+                if (a < 128) continue;
+
+                if (!isTextMode) {
+                    if (isLight) {
+                        if (r > 230 && g > 230 && b > 230) continue;
+                    } else {
+                        if (r < 50 && g < 50 && b < 50) continue;
+                    }
+                }
 
                 points.push({
-                    x: x + globalOffsetX,
-                    y: y + globalOffsetY,
-                    color: toRgb(r, g, b)
+                    x,
+                    y,
+                    color: customColor || `rgb(${r},${g},${b})`
                 });
             }
         }
-        return points.length > 0 ? points : [{x: canvas.width / 2, y: canvas.height / 2, color: '#00ffcc'}];
+
+        return points.length > 0 ? points : [{x: iw / 2, y: ih / 2, color: '#00ffcc'}];
     }
 
-    function scanImage(src, fallback, isLight = false) {
+    async function scanSource(index) {
+        const tc = document.createElement('canvas');
+        const tCtx = tc.getContext('2d');
+        const isLight = LIGHT_BG_INDICES.has(index);
+
         return new Promise((resolve) => {
-            const tc = document.createElement('canvas');
-            const tCtx = tc.getContext('2d', {willReadFrequently: true});
-
-            const process = (loadedImg) => {
-                let w, h;
-                const pad = 120;
-                if (loadedImg) {
-                    const iW = loadedImg.width;
-                    const iH = loadedImg.height;
-                    const screenScale = Math.min(canvas.width, canvas.height) * 0.7;
-                    const scale = screenScale / Math.max(iW, iH);
-                    w = Math.floor(iW * scale);
-                    h = Math.floor(iH * scale);
-                    tc.width = w + (pad * 2);
-                    tc.height = h + (pad * 2);
-                    if (isLight) {
-                        tCtx.fillStyle = '#ffffff';
-                        tCtx.fillRect(0, 0, tc.width, tc.height);
-                    }
-                    tCtx.drawImage(loadedImg, pad, pad, w, h);
-                } else {
-                    const size = Math.floor(Math.min(canvas.width, canvas.height) * 0.5);
-                    tc.width = size * 2;
-                    tc.height = size * 2.5;
-                    if (isLight) {
-                        tCtx.fillStyle = '#ffffff';
-                        tCtx.fillRect(0, 0, tc.width, tc.height);
-                    }
-                    tCtx.font = `${size}px serif`;
-                    tCtx.textAlign = 'center';
-                    tCtx.textBaseline = 'middle';
-                    tCtx.fillStyle = isLight ? '#000000' : '#00ffcc';
-                    tCtx.fillText(fallback, tc.width / 2, tc.height / 2.2);
+            if (displayMode === 2) {
+                // --- TEXT MODE ---
+                const shortSide = Math.min(canvas.width, canvas.height);
+                const langIdx = parseInt(langSelect.value);
+                const text = zbMap[langIdx].words[index];
+                tc.width = canvas.width;
+                tc.height = canvas.height;
+                let fontSize = Math.floor(shortSide * 0.12);
+                tCtx.font = `bold ${fontSize}px monospace`;
+                const maxW = canvas.width * 0.9;
+                while (tCtx.measureText(text).width > maxW && fontSize > 10) {
+                    fontSize -= 2;
+                    tCtx.font = `bold ${fontSize}px monospace`;
                 }
+                tCtx.textAlign = 'center';
+                tCtx.textBaseline = 'middle';
+                tCtx.fillStyle = '#ffffff';
+                tCtx.fillText(text, tc.width / 2, tc.height / 2);
                 const data = tCtx.getImageData(0, 0, tc.width, tc.height).data;
-                resolve(extractPoints(data, tc.width, tc.height, isLight));
-            };
+                resolve({points: extractPoints(data, tc.width, tc.height, TEXT_COLORS[index], true, isLight), isLight});
 
-            if (src && !useEmojis) {
-                const img = new Image();
-                img.crossOrigin = "Anonymous";
-                img.onload = () => process(img);
-                img.onerror = () => process(null);
-                img.src = src;
+            } else if (displayMode === 1) {
+                // --- EMOJI MODE ---
+                const shortSide = Math.min(canvas.width, canvas.height);
+                tc.width = canvas.width;
+                tc.height = canvas.height;
+                const fontSize = Math.floor(shortSide * 0.35);
+                tCtx.font = `${fontSize}px serif`;
+                tCtx.textAlign = 'center';
+                tCtx.textBaseline = 'middle';
+                tCtx.fillText(fallbackEmojis[index], tc.width / 2, tc.height / 2);
+                const data = tCtx.getImageData(0, 0, tc.width, tc.height).data;
+                resolve({points: extractPoints(data, tc.width, tc.height, null, false, isLight), isLight});
+
             } else {
-                process(null);
+                // --- IMAGE MODE ---
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.onerror = (e) => {
+                    resolve({points: [{x: canvas.width / 2, y: canvas.height / 2, color: '#00ffcc'}], isLight});
+                };
+                img.onload = () => {
+                    const maxW = canvas.width * 0.7;
+                    const maxH = canvas.height * 0.7;
+                    const scale = Math.min(maxW / img.width, maxH / img.height);
+                    const iw = img.width * scale;
+                    const ih = img.height * scale;
+                    tc.width = canvas.width;
+                    tc.height = canvas.height;
+                    const ox = (canvas.width - iw) / 2;
+                    const oy = (canvas.height - ih) / 2;
+                    tCtx.drawImage(img, ox, oy, iw, ih);
+                    try {
+                        const data = tCtx.getImageData(0, 0, tc.width, tc.height).data;
+                        resolve({points: extractPoints(data, tc.width, tc.height, null, false, isLight), isLight});
+                    } catch (e) {
+                        resolve({points: [{x: canvas.width / 2, y: canvas.height / 2, color: '#ff0000'}], isLight});
+                    }
+                };
+                img.src = animalImages[index];
             }
         });
     }
 
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        loadAllShapes();
+    });
+
     async function loadAllShapes() {
         isScanning = true;
         shapeData = [];
-        for (let i = 0; i < animalImages.length; i++) {
-            status.innerText = `Status: Scanning ${i + 1}/${animalImages.length}...`;
-            const isLight = LIGHT_BG.has(i);
-            const points = await scanImage(animalImages[i], fallbackEmojis[i], isLight);
-            shapeData.push({points, isLight});
+        for (let i = 0; i < 6; i++) {
+            status.innerText = `Scanning ${i + 1}/6...`;
+            shapeData.push(await scanSource(i));
         }
         isScanning = false;
-        status.innerText = "Ready. Click to Morph.";
+        status.innerText = "Ready.";
         morph(currentIndex);
     }
 
     function morph(index) {
-        if (isScanning) return;
+        if (!shapeData[index]) return;
         const entry = shapeData[index];
-        if (!entry) return;
+        bgIsLight = entry.isLight;
 
-        destBgR = entry.isLight ? 255 : 0;
-        destBgG = entry.isLight ? 255 : 0;
-        destBgB = entry.isLight ? 255 : 0;
+        const bgColor = entry.isLight ? "#FFFFFF" : "#000000";
+        // UI color becomes Black on White BG, and Cyan on Black BG
+        const uiColor = entry.isLight ? "#000000" : "#00ffcc";
 
         particles.forEach((p, i) => {
             const t = entry.points[i % entry.points.length];
             p.destX = t.x;
             p.destY = t.y;
             p.destColor = t.color;
-            p.delay = i * 0.01;
         });
+
+        // Apply colors to the UI elements
+        document.body.style.background = bgColor;
+
+        // Target all interactive elements for the color flip
+        const controls = [langSelect, modeBtn, document.querySelector('.home-btn[title="Back to Home"]')];
+
+        controls.forEach(el => {
+            if (el) {
+                el.style.color = uiColor;
+                el.style.borderColor = uiColor;
+                // Optional: adjust button background for better contrast
+                el.style.background = entry.isLight ? "rgba(0,0,0,0.05)" : "rgba(0,255,204,0.1)";
+            }
+        });
+
+        // Update the 'Ready' status text at the bottom
+        status.style.color = uiColor;
     }
 
     function animate() {
-        bgR += (destBgR - bgR) * 0.05;
-        bgG += (destBgG - bgG) * 0.05;
-        bgB += (destBgB - bgB) * 0.05;
-
-        ctx.fillStyle = `rgba(${bgR | 0},${bgG | 0},${bgB | 0},0.25)`;
+        // ✅ Use bgIsLight boolean instead of parsing body style string
+        ctx.fillStyle = bgIsLight
+            ? "rgba(255,255,255,0.08)"
+            : "rgba(0,0,0,0.15)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Update button colors based on background brightness
-        const brightness = (bgR + bgG + bgB) / 3;
-        const btnColor = brightness > 127 ? "black" : "white";
-        const borderColor = brightness > 127 ? "rgba(0,0,0,0.5)" : "#00ffcc";
-
-        [zbBtn, modeBtn].forEach(btn => {
-            btn.style.color = btnColor;
-            btn.style.borderColor = borderColor;
-        });
-
         particles.forEach(p => {
             p.update();
             p.draw();
@@ -273,30 +347,27 @@
         requestAnimationFrame(animate);
     }
 
-    modeBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (isScanning) return;
-        useEmojis = !useEmojis;
-        modeBtn.innerText = useEmojis ? "🐾" : "🖼️";
+    modeBtn.addEventListener('click', async () => {
+        displayMode = (displayMode + 1) % 3;
+        modeBtn.innerText = ["\uD83D\uDCF7", "\uD83D\uDE00", "Abc"][displayMode];
         await loadAllShapes();
     });
 
-    async function startApp() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        particles = [];
-        for (let i = 0; i < 4000; i++) particles.push(new Particle());
-        animate();
-        await loadAllShapes();
-    }
+    langSelect.addEventListener('change', async () => {
+        if (displayMode === 2) await loadAllShapes();
+    });
 
     window.addEventListener('mousedown', e => {
-        if (e.target.closest('.home-btn') || isScanning) return;
-        currentIndex = (currentIndex + 1) % shapeData.length;
+        if (e.target.closest('.controls') || isScanning) return;
+        currentIndex = (currentIndex + 1) % 6;
         morph(currentIndex);
     });
 
-    startApp();
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    for (let i = 0; i < 4000; i++) particles.push(new Particle());
+    animate();
+    loadAllShapes();
 </script>
 </body>
 </html>
