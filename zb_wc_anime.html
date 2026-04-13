@@ -214,18 +214,18 @@
         }
     }
 
-    function extractPoints(data, iw, ih, customColor = null, isTextMode = false) {
+    function extractPoints(data, iw, ih, customColor = null, isTextMode = false, overrideStep = null) {
         const points = [];
-        // Step 2 provides great detail for the thin lines of the camel and octopus
-        const step = isTextMode ? 4 : 2;
+        // overrideStep (from the scanSource) is key for large screen performance
+        const step = overrideStep || (isTextMode ? 4 : 2);
 
         for (let y = 0; y < ih; y += step) {
             for (let x = 0; x < iw; x += step) {
                 const i = (y * iw + x) * 4;
                 const alpha = data[i + 3];
 
-                // If alpha is > 50, it's part of the animal.
-                // This captures the thin legs and the white body perfectly.
+                // Use 50 to ensure thin lines (like the camel legs or octopus tentacles)
+                // are captured, even if they are slightly anti-aliased.
                 if (alpha < 50) continue;
 
                 const r = data[i], g = data[i + 1], b = data[i + 2];
@@ -233,11 +233,12 @@
                 points.push({
                     x,
                     y,
-                    // Use ZB Frequency color if provided, else use the image color
+                    // Favors the ZB Frequency system colors when provided
                     color: customColor || `rgb(${r},${g},${b})`
                 });
             }
         }
+        // Fallback to a center point if no pixels are found
         return points.length > 0 ? points : [{x: iw / 2, y: ih / 2, color: '#ffffff'}];
     }
 
@@ -246,67 +247,103 @@
         const tCtx = tc.getContext('2d');
         const isLight = LIGHT_BG_INDICES.has(index);
 
+        const base = 800;
+        const ratio = canvas.width / canvas.height;
+
+        if (ratio > 1) {
+            tc.width = base;
+            tc.height = Math.floor(base / ratio);
+        } else {
+            tc.height = base;
+            tc.width = Math.floor(base * ratio);
+        }
+
+        const sw = tc.width;
+        const sh = tc.height;
+
         return new Promise((resolve) => {
+            const shortSide = Math.min(sw, sh);
+
             if (displayMode === 2) {
                 // --- TEXT MODE ---
-                const shortSide = Math.min(canvas.width, canvas.height);
-                const langIdx = parseInt(langSelect.value);
-                const text = zbMap[langIdx].words[index];
-                tc.width = canvas.width;
-                tc.height = canvas.height;
-                let fontSize = Math.floor(shortSide * 0.12);
+                const text = zbMap[parseInt(langSelect.value)].words[index];
+                // Shrink font slightly more for better safety (0.18 vs 0.2)
+                let fontSize = Math.floor(shortSide * 0.18);
                 tCtx.font = `bold ${fontSize}px monospace`;
-                const maxW = canvas.width * 0.9;
+
+                // Tighten max width to 80% to ensure no edge-clipping in portrait
+                const maxW = sw * 0.8;
                 while (tCtx.measureText(text).width > maxW && fontSize > 10) {
                     fontSize -= 2;
                     tCtx.font = `bold ${fontSize}px monospace`;
                 }
+
                 tCtx.textAlign = 'center';
                 tCtx.textBaseline = 'middle';
                 tCtx.fillStyle = '#ffffff';
-                tCtx.fillText(text, tc.width / 2, tc.height / 2);
-                const data = tCtx.getImageData(0, 0, tc.width, tc.height).data;
-                resolve({points: extractPoints(data, tc.width, tc.height, TEXT_COLORS[index], true), isLight});
+                tCtx.fillText(text, sw / 2, sh / 2);
+
+                const data = tCtx.getImageData(0, 0, sw, sh).data;
+                resolve({
+                    points: mapToScreen(extractPoints(data, sw, sh, TEXT_COLORS[index], true), sw, sh),
+                    isLight
+                });
+
             } else if (displayMode === 1) {
                 // --- EMOJI MODE ---
-                const shortSide = Math.min(canvas.width, canvas.height);
-                tc.width = canvas.width;
-                tc.height = canvas.height;
-                const fontSize = Math.floor(shortSide * 0.35);
-                tCtx.font = `${fontSize}px serif`;
+                // Use 0.45 instead of 0.5 to keep tall emojis from hitting the top/bottom
+                tCtx.font = `${Math.floor(shortSide * 0.45)}px sans-serif`;
                 tCtx.textAlign = 'center';
                 tCtx.textBaseline = 'middle';
-                tCtx.fillText(fallbackEmojis[index], tc.width / 2, tc.height / 2);
-                const data = tCtx.getImageData(0, 0, tc.width, tc.height).data;
-                resolve({points: extractPoints(data, tc.width, tc.height, null, false), isLight});
+                tCtx.fillStyle = '#ffffff';
+                tCtx.fillText(fallbackEmojis[index], sw / 2, sh / 2);
+
+                const data = tCtx.getImageData(0, 0, sw, sh).data;
+                resolve({
+                    points: mapToScreen(extractPoints(data, sw, sh, null, false, 4), sw, sh),
+                    isLight
+                });
+
             } else {
                 // --- IMAGE MODE ---
                 const img = new Image();
                 img.crossOrigin = 'Anonymous';
-                img.onerror = () => { // Removed (e)
-                    resolve({points: [{x: canvas.width / 2, y: canvas.height / 2, color: '#ffffff'}], isLight});
-                };
                 img.onload = () => {
-                    const maxW = canvas.width * 0.7;
-                    const maxH = canvas.height * 0.7;
-                    const scale = Math.min(maxW / img.width, maxH / img.height);
+                    // Use a 0.75 multiplier instead of 0.8 to create a larger "safety gutter"
+                    const scale = Math.min(sw * 0.75 / img.width, sh * 0.75 / img.height);
                     const iw = img.width * scale;
                     const ih = img.height * scale;
-                    tc.width = canvas.width;
-                    tc.height = canvas.height;
-                    const ox = (canvas.width - iw) / 2;
-                    const oy = (canvas.height - ih) / 2;
-                    tCtx.drawImage(img, ox, oy, iw, ih);
-                    try {
-                        const data = tCtx.getImageData(0, 0, tc.width, tc.height).data;
-                        resolve({points: extractPoints(data, tc.width, tc.height, null, false), isLight});
-                    } catch { // Removed (e)
-                        resolve({points: [{x: canvas.width / 2, y: canvas.height / 2, color: '#ff0000'}], isLight});
-                    }
+                    tCtx.drawImage(img, (sw - iw) / 2, (sh - ih) / 2, iw, ih);
+
+                    const data = tCtx.getImageData(0, 0, sw, sh).data;
+                    resolve({
+                        points: mapToScreen(extractPoints(data, sw, sh), sw, sh),
+                        isLight
+                    });
                 };
                 img.src = animalImagesLn[index];
             }
         });
+    }
+
+    // Helper to project virtual points to real screen size
+    function mapToScreen(points, sw, sh) {
+        const cw = canvas.width;
+        const ch = canvas.height;
+
+        // Calculate the scale to fit the shape inside the canvas without stretching
+        const scale = Math.min(cw / sw, ch / sh);
+
+        // Calculate offsets to perfectly center the shape in the remaining space
+        const offsetX = (cw - sw * scale) / 2;
+        const offsetY = (ch - sh * scale) / 2;
+
+        return points.map(p => ({
+            // Scale the point, then shift it to the center
+            x: p.x * scale + offsetX,
+            y: p.y * scale + offsetY,
+            color: p.color
+        }));
     }
 
     function updateModeButtonUI() {
@@ -331,10 +368,14 @@
         }
     });
 
+    let resizeTimer;
     window.addEventListener('resize', () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        loadAllShapes();
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            loadAllShapes();
+        }, 200); // Wait 200ms after the last move to rescan
     });
 
     // 1. Function to populate the dropdown dynamically
@@ -354,28 +395,38 @@
 
 
     async function loadAllShapes() {
-        // Populate the menu first if it hasn't been done
         if (langSelect.options.length === 0) populateLanguageMenu();
 
         isScanning = true;
-        shapeData = [];
+        let newShapes = []; // Temporary container
+
         for (let i = 0; i < 6; i++) {
             status.innerText = `Scanning ${i + 1}/6...`;
-            shapeData.push(await scanSource(i));
+            const result = await scanSource(i);
+            newShapes.push(result);
         }
+
+        // Switch the whole set at once
+        shapeData = newShapes;
         isScanning = false;
 
-        // Instead of status.innerText = "Ready.",
-        // we call morph to set the correct ZB mark for the current index
+        // Now trigger the morph for the current view
         morph(currentIndex);
     }
 
     function morph(index) {
-        if (!shapeData[index]) return;
+        // 1. Immediate UI Feedback: Update the ZB Mark immediately for responsiveness
+        const currentMark = zbMark[index] || "";
+        status.innerText = "zb" + currentMark;
+
+        // 2. Safety Guard: If data isn't ready (e.g., during a resize/scan), stop here
+        if (!shapeData || !shapeData[index]) return;
+
         const entry = shapeData[index];
         bgIsLight = entry.isLight;
         const uiColor = bgIsLight ? "#000000" : "#ffffff";
 
+        // 3. Particle Morphing Logic
         particles.forEach((p, i) => {
             const t = entry.points[i % entry.points.length];
             p.destX = t.x;
@@ -383,21 +434,27 @@
             p.destColor = t.color;
         });
 
+        // 4. Background Transition
         document.body.style.background = bgIsLight ? "#FFFFFF" : "#000000";
 
-        // Update UI elements color
-        [langSelect, modeBtn, downloadBtn, document.querySelector('.home-btn[title="Back to Home"]')].forEach(el => {
+        // 5. UI Elements Color Swap (Select, Buttons, and Home Link)
+        const uiElements = [
+            langSelect,
+            modeBtn,
+            downloadBtn,
+            document.querySelector('.home-btn[title="Back to Home"]')
+        ];
+
+        uiElements.forEach(el => {
             if (el) {
                 el.style.color = uiColor;
                 el.style.borderColor = uiColor;
+                // Apply subtle background tint based on brightness
                 el.style.background = bgIsLight ? "rgba(0,0,0,0.05)" : "rgba(0,255,204,0.1)";
             }
         });
 
-        // --- NEW STATUS LOGIC ---
-        // Maps the index to the mark (e.g., index 0 -> zb_)
-        const currentMark = zbMark[index] || "";
-        status.innerText = "zb" + currentMark;
+        // 6. Final Status Styling
         status.style.color = uiColor;
     }
 
