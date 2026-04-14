@@ -7,68 +7,77 @@
     <style>
         body {
             margin: 0;
+            padding: 0;
             background: #000;
             overflow: hidden;
             color: #00ffcc;
             font-family: monospace;
             transition: background 0.5s ease;
+            width: 100vw;
+            height: 100vh;
         }
 
         canvas {
             display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
         }
 
-        #status {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            font-size: 12px;
-            pointer-events: none;
-            opacity: 0.6;
-        }
 
-        .controls {
+        /* Top Left Button Group with padding */
+        .button-row {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            top: 25px; /* Top padding */
+            left: 25px; /* Left padding */
             display: flex;
-            gap: 10px;
+            flex-direction: row;
+            gap: 12px;
             z-index: 100;
-        }
-
-        /* Standardized class for ALL circular buttons */
-        .home-btn, .lang-select {
-            height: 44px;
-            background: rgba(0, 255, 204, 0.1);
-            border: 1px solid #00ffcc;
-            color: #00ffcc;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            outline: none;
-            box-sizing: border-box; /* Keeps dimensions exact */
         }
 
         .home-btn {
             width: 44px;
-            padding: 0;
+            height: 44px;
+            background: rgba(0, 255, 204, 0.1);
+            border: 1px solid #00ffcc;
+            color: #00ffcc;
             border-radius: 50%;
-            text-decoration: none;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            line-height: 1;
-            font-size: 18px; /* Adjusts icon/text size */
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            font-size: 18px;
+            box-sizing: border-box;
         }
 
+        /* Bottom Centered Language Menu */
         .lang-select {
+            position: absolute;
+            bottom: 35px; /* Bottom padding */
+            left: 50%;
+            transform: translateX(-50%);
+            height: 44px;
+            min-width: 220px;
+            max-width: 85vw;
+            background: rgba(0, 255, 204, 0.1);
+            border: 1px solid #00ffcc;
+            color: #00ffcc;
             border-radius: 22px;
-            padding: 0 15px;
+            padding: 0 20px;
             font-family: monospace;
+            font-weight: bold;
             appearance: none;
             text-align: center;
-            display: flex;
-            align-items: center;
+            cursor: pointer;
+            z-index: 100;
+            outline: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .home-btn:hover, .lang-select:hover {
@@ -80,24 +89,48 @@
             background: #000;
             color: #ffffff;
         }
+
+        #status {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            font-size: 10px;
+            pointer-events: none;
+            opacity: 0.4;
+            z-index: 100;
+        }
     </style>
 </head>
 <body>
 
-<div class="controls">
-    <label for="langSelect" style="display:none;">Select Language</label>
-    <select id="langSelect" class="lang-select">
-    </select>
-
-    <button id="toggleMode" class="home-btn" title="Switch Mode">&#128247;</button>
-    <button id="downloadBtn" class="home-btn" title="ZB Down">💾</button>
+<div class="button-row">
     <a href="index.html" class="home-btn" title="Back to Home">ZB</a>
+    <button id="downloadBtn" class="home-btn" title="ZB Down">&#128190;</button>
+    <button id="toggleMode" class="home-btn" title="Switch Mode">&#128247;</button>
+
+    <input type="range" id="scaleSlider" min="0" max="1.5" step="0.01" value="0.9"
+           aria-label="Scale Particles"
+           style="width: 100px; cursor: pointer; accent-color: #ffffff; vertical-align: middle;">
 </div>
+
+<label for="langSelect" style="display:none;">Select Language</label>
+<select id="langSelect" class="lang-select"></select>
 
 <div id="status">Status: Initializing...</div>
 <canvas id="canvas"></canvas>
 
 <script>
+
+    let userScale = 0.9; // Default scale
+    const scaleSlider = document.getElementById('scaleSlider');
+
+    scaleSlider.addEventListener('input', (e) => {
+        userScale = parseFloat(e.target.value);
+        loadAllShapes(); // Re-map the points whenever the slider moves
+    });
+
+    // Stop the slider from triggering the image morph
+    scaleSlider.addEventListener('mousedown', e => e.stopPropagation());
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d', {willReadFrequently: true});
     const status = document.getElementById('status');
@@ -216,29 +249,20 @@
 
     function extractPoints(data, iw, ih, customColor = null, isTextMode = false, overrideStep = null) {
         const points = [];
-        // overrideStep (from the scanSource) is key for large screen performance
         const step = overrideStep || (isTextMode ? 4 : 2);
 
         for (let y = 0; y < ih; y += step) {
             for (let x = 0; x < iw; x += step) {
                 const i = (y * iw + x) * 4;
-                const alpha = data[i + 3];
-
-                // Use 50 to ensure thin lines (like the camel legs or octopus tentacles)
-                // are captured, even if they are slightly anti-aliased.
-                if (alpha < 50) continue;
-
-                const r = data[i], g = data[i + 1], b = data[i + 2];
+                if (data[i + 3] < 50) continue; // Alpha threshold
 
                 points.push({
                     x,
                     y,
-                    // Favors the ZB Frequency system colors when provided
-                    color: customColor || `rgb(${r},${g},${b})`
+                    color: customColor || `rgb(${data[i]},${data[i + 1]},${data[i + 2]})`
                 });
             }
         }
-        // Fallback to a center point if no pixels are found
         return points.length > 0 ? points : [{x: iw / 2, y: ih / 2, color: '#ffffff'}];
     }
 
@@ -246,17 +270,11 @@
         const tc = document.createElement('canvas');
         const tCtx = tc.getContext('2d');
         const isLight = LIGHT_BG_INDICES.has(index);
-
         const base = 800;
         const ratio = canvas.width / canvas.height;
 
-        if (ratio > 1) {
-            tc.width = base;
-            tc.height = Math.floor(base / ratio);
-        } else {
-            tc.height = base;
-            tc.width = Math.floor(base * ratio);
-        }
+        tc.width = ratio > 1 ? base : Math.floor(base * ratio);
+        tc.height = ratio > 1 ? Math.floor(base / ratio) : base;
 
         const sw = tc.width;
         const sh = tc.height;
@@ -265,61 +283,42 @@
             const shortSide = Math.min(sw, sh);
 
             if (displayMode === 2) {
-                // --- TEXT MODE ---
+                // TEXT: Shrink max width significantly to prevent side-clipping
                 const text = zbMap[parseInt(langSelect.value)].words[index];
-                // Shrink font slightly more for better safety (0.18 vs 0.2)
-                let fontSize = Math.floor(shortSide * 0.18);
+                let fontSize = Math.floor(shortSide * 0.15);
                 tCtx.font = `bold ${fontSize}px monospace`;
-
-                // Tighten max width to 80% to ensure no edge-clipping in portrait
-                const maxW = sw * 0.8;
-                while (tCtx.measureText(text).width > maxW && fontSize > 10) {
+                while (tCtx.measureText(text).width > sw * 0.7 && fontSize > 10) {
                     fontSize -= 2;
                     tCtx.font = `bold ${fontSize}px monospace`;
                 }
-
                 tCtx.textAlign = 'center';
                 tCtx.textBaseline = 'middle';
                 tCtx.fillStyle = '#ffffff';
                 tCtx.fillText(text, sw / 2, sh / 2);
 
                 const data = tCtx.getImageData(0, 0, sw, sh).data;
-                resolve({
-                    points: mapToScreen(extractPoints(data, sw, sh, TEXT_COLORS[index], true), sw, sh),
-                    isLight
-                });
+                resolve({points: mapToScreen(extractPoints(data, sw, sh, TEXT_COLORS[index], true)), isLight});
 
             } else if (displayMode === 1) {
-                // --- EMOJI MODE ---
-                // Use 0.45 instead of 0.5 to keep tall emojis from hitting the top/bottom
-                tCtx.font = `${Math.floor(shortSide * 0.45)}px sans-serif`;
+                // EMOJI: Centered with padding
+                tCtx.font = `${Math.floor(shortSide * 0.4)}px sans-serif`;
                 tCtx.textAlign = 'center';
                 tCtx.textBaseline = 'middle';
-                tCtx.fillStyle = '#ffffff';
                 tCtx.fillText(fallbackEmojis[index], sw / 2, sh / 2);
-
                 const data = tCtx.getImageData(0, 0, sw, sh).data;
-                resolve({
-                    points: mapToScreen(extractPoints(data, sw, sh, null, false, 4), sw, sh),
-                    isLight
-                });
+                resolve({points: mapToScreen(extractPoints(data, sw, sh, null, false, 4)), isLight});
 
             } else {
-                // --- IMAGE MODE ---
+                // IMAGE: Using 0.65 instead of 0.75 for a much larger safety gutter
                 const img = new Image();
                 img.crossOrigin = 'Anonymous';
                 img.onload = () => {
-                    // Use a 0.75 multiplier instead of 0.8 to create a larger "safety gutter"
-                    const scale = Math.min(sw * 0.75 / img.width, sh * 0.75 / img.height);
+                    const scale = Math.min(sw * 0.65 / img.width, sh * 0.65 / img.height);
                     const iw = img.width * scale;
                     const ih = img.height * scale;
                     tCtx.drawImage(img, (sw - iw) / 2, (sh - ih) / 2, iw, ih);
-
                     const data = tCtx.getImageData(0, 0, sw, sh).data;
-                    resolve({
-                        points: mapToScreen(extractPoints(data, sw, sh), sw, sh),
-                        isLight
-                    });
+                    resolve({points: mapToScreen(extractPoints(data, sw, sh)), isLight});
                 };
                 img.src = animalImagesLn[index];
             }
@@ -327,21 +326,37 @@
     }
 
     // Helper to project virtual points to real screen size
-    function mapToScreen(points, sw, sh) {
+    function mapToScreen(points) {
+        if (points.length === 0) return [];
         const cw = canvas.width;
         const ch = canvas.height;
 
-        // Calculate the scale to fit the shape inside the canvas without stretching
-        const scale = Math.min(cw / sw, ch / sh);
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        points.forEach(p => {
+            if (p.x < minX) minX = p.x;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.y > maxY) maxY = p.y;
+        });
 
-        // Calculate offsets to perfectly center the shape in the remaining space
-        const offsetX = (cw - sw * scale) / 2;
-        const offsetY = (ch - sh * scale) / 2;
+        const realW = maxX - minX;
+        const realH = maxY - minY;
+
+        // Use 0.85 for tight containment - 15% total screen padding
+        const padding = 0.85;
+        const scaleX = (cw * padding) / realW;
+        const scaleY = (ch * padding) / realH;
+
+        const baseScale = Math.min(scaleX, scaleY);
+        const finalScale = baseScale * userScale;
+
+        // Offset centers the shape based on the tightest bounding box found
+        const offsetX = (cw - realW * finalScale) / 2 - minX * finalScale;
+        const offsetY = (ch - realH * finalScale) / 2 - minY * finalScale;
 
         return points.map(p => ({
-            // Scale the point, then shift it to the center
-            x: p.x * scale + offsetX,
-            y: p.y * scale + offsetY,
+            x: p.x * finalScale + offsetX,
+            y: p.y * finalScale + offsetY,
             color: p.color
         }));
     }
@@ -372,11 +387,18 @@
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(() => {
+            // Force the canvas to match the new portrait window size
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+
+            // Re-scan and re-map points so they fit the new aspect ratio
             loadAllShapes();
-        }, 200); // Wait 200ms after the last move to rescan
+        }, 200);
     });
+
+    // Prevent clicks on the language selector from reaching the window morph logic
+    langSelect.addEventListener('mousedown', e => e.stopPropagation());
+    langSelect.addEventListener('touchstart', e => e.stopPropagation());
 
     // 1. Function to populate the dropdown dynamically
     function populateLanguageMenu() {
@@ -415,11 +437,11 @@
     }
 
     function morph(index) {
-        // 1. Immediate UI Feedback: Update the ZB Mark immediately for responsiveness
+        // 1. Immediate UI Feedback
         const currentMark = zbMark[index] || "";
         status.innerText = "zb" + currentMark;
 
-        // 2. Safety Guard: If data isn't ready (e.g., during a resize/scan), stop here
+        // 2. Safety Guard
         if (!shapeData || !shapeData[index]) return;
 
         const entry = shapeData[index];
@@ -437,11 +459,14 @@
         // 4. Background Transition
         document.body.style.background = bgIsLight ? "#FFFFFF" : "#000000";
 
-        // 5. UI Elements Color Swap (Select, Buttons, and Home Link)
+        // 5. UI Elements Color Swap
+        // Includes: Select, Mode, Download, Home, and the new Scale Slider
+        const scaleSlider = document.getElementById('scaleSlider');
         const uiElements = [
             langSelect,
             modeBtn,
             downloadBtn,
+            scaleSlider,
             document.querySelector('.home-btn[title="Back to Home"]')
         ];
 
@@ -449,12 +474,18 @@
             if (el) {
                 el.style.color = uiColor;
                 el.style.borderColor = uiColor;
-                // Apply subtle background tint based on brightness
-                el.style.background = bgIsLight ? "rgba(0,0,0,0.05)" : "rgba(0,255,204,0.1)";
+
+                if (el.id === "scaleSlider") {
+                    // Keep the slider thumb visible against light/dark backgrounds
+                    el.style.accentColor = uiColor;
+                } else {
+                    // Background tint for buttons and dropdowns
+                    el.style.background = bgIsLight ? "rgba(0,0,0,0.05)" : "rgba(0,255,204,0.1)";
+                }
             }
         });
 
-        // 6. Final Status Styling
+        // 6. Final Status & Global UI Styling
         status.style.color = uiColor;
     }
 
@@ -494,7 +525,13 @@
     });
 
     window.addEventListener('mousedown', e => {
-        if (e.target.closest('.controls') || isScanning) return;
+        // If the click is on a button, the select menu, or during a scan, DO NOTHING
+        if (e.target.closest('.button-row') ||
+            e.target.closest('.lang-select') ||
+            isScanning) {
+            return;
+        }
+
         currentIndex = (currentIndex + 1) % 6;
         morph(currentIndex);
     });
