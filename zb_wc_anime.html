@@ -273,73 +273,90 @@
     }
 
     async function scanSource(index) {
-        const tc = document.createElement('canvas');
-        const tCtx = tc.getContext('2d');
-        const isLight = LIGHT_BG_INDICES.has(index);
-        const base = 800;
-        const ratio = canvas.width / canvas.height;
+    const tc = document.createElement('canvas');
+    const tCtx = tc.getContext('2d');
+    const isLight = LIGHT_BG_INDICES.has(index);
+    const base = 800;
+    const ratio = canvas.width / canvas.height;
 
-        tc.width = ratio > 1 ? base : Math.floor(base * ratio);
-        tc.height = ratio > 1 ? Math.floor(base / ratio) : base;
+    tc.width = ratio > 1 ? base : Math.floor(base * ratio);
+    tc.height = ratio > 1 ? Math.floor(base / ratio) : base;
 
-        const sw = tc.width;
-        const sh = tc.height;
+    const sw = tc.width;
+    const sh = tc.height;
 
-        return new Promise((resolve) => {
-            const shortSide = Math.min(sw, sh);
+    return new Promise((resolve) => {
+        const shortSide = Math.min(sw, sh);
 
-            if (displayMode === 2) {
-                // TEXT: Shrink max width significantly to prevent side-clipping
-                let text = zbMap[parseInt(langSelect.value)].words[index];
+        if (displayMode === 2) { // TEXT Mode
+            let text = zbMap[parseInt(langSelect.value)].words[index];
 
-                // --- Casing Logic ---
-                if (index === 1) {
-                    text = text.toLowerCase(); // silence / cisza
-                } else if (index === 4) {
-                    text = text.toUpperCase(); // COMPLEX / ZŁOŻONE
-                }
-
-                let fontSize = Math.floor(shortSide * 0.15);
-                tCtx.font = `bold ${fontSize}px monospace`;
-
-                while (tCtx.measureText(text).width > sw * 0.7 && fontSize > 10) {
-                    fontSize -= 2;
-                    tCtx.font = `bold ${fontSize}px monospace`;
-                }
-
-                tCtx.textAlign = 'center';
-                tCtx.textBaseline = 'middle';
-                tCtx.fillStyle = '#ffffff';
-                tCtx.fillText(text, sw / 2, sh / 2);
-
-                const data = tCtx.getImageData(0, 0, sw, sh).data;
-                resolve({points: mapToScreen(extractPoints(data, sw, sh, TEXT_COLORS[index], true)), isLight});
-
-            } else if (displayMode === 1) {
-                // EMOJI: Centered with padding
-                tCtx.font = `${Math.floor(shortSide * 0.4)}px sans-serif`;
-                tCtx.textAlign = 'center';
-                tCtx.textBaseline = 'middle';
-                tCtx.fillText(fallbackEmojis[index], sw / 2, sh / 2);
-                const data = tCtx.getImageData(0, 0, sw, sh).data;
-                resolve({points: mapToScreen(extractPoints(data, sw, sh, null, false, 4)), isLight});
-
-            } else {
-                // IMAGE: Using 0.65 for a large safety gutter
-                const img = new Image();
-                img.crossOrigin = 'Anonymous';
-                img.onload = () => {
-                    const scale = Math.min(sw * 0.65 / img.width, sh * 0.65 / img.height);
-                    const iw = img.width * scale;
-                    const ih = img.height * scale;
-                    tCtx.drawImage(img, (sw - iw) / 2, (sh - ih) / 2, iw, ih);
-                    const data = tCtx.getImageData(0, 0, sw, sh).data;
-                    resolve({points: mapToScreen(extractPoints(data, sw, sh)), isLight});
-                };
-                img.src = animalImagesLn[index];
+            // --- Casing Logic ---
+            if (index === 1) {
+                text = text.toLowerCase();
+            } else if (index === 4) {
+                text = text.toUpperCase();
             }
-        });
-    }
+
+            // --- Surgical Fix for Item [5] ---
+            let fontSize = Math.floor(shortSide * 0.15);
+
+            if (index === 5) {
+                // 1. Force a slightly smaller font for the long string to ensure crisp edges
+                fontSize = Math.floor(shortSide * 0.12);
+                tCtx.font = `bold ${fontSize}px monospace`;
+                // 2. Add letter spacing to prevent "m" and "W" clumping
+                tCtx.letterSpacing = "5px";
+            } else {
+                tCtx.font = `bold ${fontSize}px monospace`;
+                tCtx.letterSpacing = "0px"; // Ensure others stay tight
+            }
+
+            while (tCtx.measureText(text).width > sw * 0.7 && fontSize > 10) {
+                fontSize -= 2;
+                tCtx.font = `bold ${fontSize}px monospace`;
+            }
+
+            tCtx.textAlign = 'center';
+            tCtx.textBaseline = 'middle';
+            tCtx.fillStyle = '#ffffff';
+            tCtx.fillText(text, sw / 2, sh / 2);
+
+            const data = tCtx.getImageData(0, 0, sw, sh).data;
+
+            // --- Point Density Manipulation for [5] ---
+            // If the text is still unclear, we can pass a 'false' for the 5th param
+            // of extractPoints to get a higher density (step of 2 instead of 4)
+            const isExtreme = (index === 5);
+            const points = extractPoints(data, sw, sh, TEXT_COLORS[index], true, isExtreme ? 2 : 4);
+
+            resolve({points: mapToScreen(points), isLight});
+
+        } else if (displayMode === 1) {
+            // ... (Emoji logic remains exactly the same)
+            tCtx.font = `${Math.floor(shortSide * 0.4)}px sans-serif`;
+            tCtx.textAlign = 'center';
+            tCtx.textBaseline = 'middle';
+            tCtx.fillText(fallbackEmojis[index], sw / 2, sh / 2);
+            const data = tCtx.getImageData(0, 0, sw, sh).data;
+            resolve({points: mapToScreen(extractPoints(data, sw, sh, null, false, 4)), isLight});
+
+        } else {
+            // ... (Image logic remains exactly the same)
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = () => {
+                const scale = Math.min(sw * 0.65 / img.width, sh * 0.65 / img.height);
+                const iw = img.width * scale;
+                const ih = img.height * scale;
+                tCtx.drawImage(img, (sw - iw) / 2, (sh - ih) / 2, iw, ih);
+                const data = tCtx.getImageData(0, 0, sw, sh).data;
+                resolve({points: mapToScreen(extractPoints(data, sw, sh)), isLight});
+            };
+            img.src = animalImagesLn[index];
+        }
+    });
+}
 
     // Helper to project virtual points to real screen size
     function mapToScreen(points) {
