@@ -567,14 +567,19 @@
         await loadAllShapes();
     });
 
-    // When changing the language dropdown
     langSelect.addEventListener('change', async () => {
-        updateModeButtonUI(); // Fixed: Changed from updateModeButtonLabel
-        if (displayMode === 2) await loadAllShapes();
-    });
+        // 1. Update UI (e.g. "Abc" becomes "אבג")
+        updateModeButtonUI();
 
-    langSelect.addEventListener('change', async () => {
-        if (displayMode === 2) await loadAllShapes();
+        // 2. Invalidate the Text cache since words have changed
+        if (typeof shapeCache !== 'undefined') {
+            shapeCache[2] = null;
+        }
+
+        // 3. Only re-scan if the user is currently looking at the Text mode
+        if (displayMode === 2) {
+            await loadAllShapes();
+        }
     });
 
     window.addEventListener('mousedown', e => {
