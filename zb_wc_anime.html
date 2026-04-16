@@ -413,13 +413,20 @@
         const langIdx = parseInt(langSelect.value);
         const selectedLang = zbMap[langIdx];
 
-        // index 0: Camera icon
-        // index 1: Emoji
-        // index 2: Dynamic Letterbase from the map
+        // 1. Update the Mode Toggle Button Label
         const labels = ["\uD83D\uDCF7", "\uD83D\uDE00", selectedLang.letterbase];
-
-        // Force the innerText update
         modeBtn.innerText = labels[displayMode];
+
+        // 2. Update the Action Button (Download/Copy)
+        if (displayMode === 0) {
+            // Image Mode -> Floppy Disk (Save PNG)
+            downloadBtn.innerHTML = "&#128190;";
+            downloadBtn.title = "Save PNG";
+        } else {
+            // Emoji or Text Mode -> Clipboard (Copy Text)
+            downloadBtn.innerHTML = "&#128203;";
+            downloadBtn.title = "Copy to Clipboard";
+        }
     }
 
 
@@ -433,22 +440,22 @@
 
     let resizeTimer;
     window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-        // 1. Update canvas dimensions to the new window size
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            // 1. Update canvas dimensions to the new window size
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
 
-        // 2. Clear the cache!
-        // This is important because the "raw" points were scanned on a virtual canvas
-        // that depends on the aspect ratio (ratio = canvas.width / canvas.height).
-        shapeCache = { 0: null, 1: null, 2: null };
+            // 2. Clear the cache!
+            // This is important because the "raw" points were scanned on a virtual canvas
+            // that depends on the aspect ratio (ratio = canvas.width / canvas.height).
+            shapeCache = {0: null, 1: null, 2: null};
 
-        // 3. Re-load (this will re-scan ONCE for the new aspect ratio)
-        loadAllShapes();
+            // 3. Re-load (this will re-scan ONCE for the new aspect ratio)
+            loadAllShapes();
 
-    }, 200);
-});
+        }, 200);
+    });
 
     // Prevent clicks on the language selector from reaching the window morph logic
     langSelect.addEventListener('mousedown', e => e.stopPropagation());
@@ -643,19 +650,45 @@
 
     const downloadBtn = document.getElementById('downloadBtn');
 
-    downloadBtn.addEventListener('click', () => {
-        // 1. Create a temporary link element
-        const link = document.createElement('a');
-
-        // 2. Set the filename based on the current animal/index
+    downloadBtn.addEventListener('click', async () => {
         const langIdx = parseInt(langSelect.value);
-        const currentWord = zbMap[langIdx].words[currentIndex].replace(/\s+/g, '_');
-        link.download = `ZB_${currentWord}_${Date.now()}.png`;
+        const currentWord = zbMap[langIdx].words[currentIndex];
 
-        // 3. Convert canvas to data URL and trigger click
-        link.href = canvas.toDataURL("image/png");
-        link.click();
+        if (displayMode === 0) {
+            // IMAGE MODE: Standard PNG Save
+            const link = document.createElement('a');
+            link.download = `ZB_${currentWord.replace(/\s+/g, '_')}_${Date.now()}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+        } else {
+            // EMOJI or TEXT MODE: Copy Logic
+            const textToCopy = (displayMode === 1) ? fallbackEmojis[currentIndex] : currentWord;
+
+            try {
+                // Primary method for Ubuntu/Chrome
+                await navigator.clipboard.writeText(textToCopy);
+                showCopyFeedback();
+            } catch (err) {
+                // Fallback for Android S7/Redmi (Non-HTTPS or older Webview)
+                const textArea = document.createElement("textarea");
+                textArea.value = textToCopy;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showCopyFeedback();
+            }
+        }
     });
+
+    function showCopyFeedback() {
+        const btn = document.getElementById('downloadBtn');
+        const originalIcon = btn.innerHTML;
+        btn.innerHTML = "&#9989;"; // Checkmark ✅
+        setTimeout(() => {
+            btn.innerHTML = originalIcon;
+        }, 1000);
+    }
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
