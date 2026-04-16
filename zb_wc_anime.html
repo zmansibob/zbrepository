@@ -104,7 +104,8 @@
 <body>
 
 <div class="button-row">
-    <a href="index.html" class="home-btn" title="Back to Home">ZB</a>
+    <a href="index.html" id="homeBtn" class="home-btn" title="Back to Home">ZB</a>
+    <button id="fullscreenBtn" class="home-btn" onclick="toggleFullScreen()" title="Fullscreen">&#129336;</button>
     <button id="downloadBtn" class="home-btn" title="ZB Down">&#128190;</button>
     <button id="toggleMode" class="home-btn" title="Switch Mode">&#128247;</button>
 
@@ -165,6 +166,11 @@
             lang: "Russian",
             words: ["Я не знаю", "Молчание", "Дыхание", "Простой", "Сложный", "Зманסי Белый Верблюд Боб"],
             letterbase: "Абв"
+        },
+        {
+            lang: "Polish",
+            words: ["Nie wiem", "Cisza", "Oddech", "Proste", "Złożone", "Zmansi Biały Wielbłąd Bob"],
+            letterbase: "Abc"
         },
         {
             lang: "Hindi",
@@ -284,13 +290,23 @@
 
             if (displayMode === 2) {
                 // TEXT: Shrink max width significantly to prevent side-clipping
-                const text = zbMap[parseInt(langSelect.value)].words[index];
+                let text = zbMap[parseInt(langSelect.value)].words[index];
+
+                // --- Casing Logic ---
+                if (index === 1) {
+                    text = text.toLowerCase(); // silence / cisza
+                } else if (index === 4) {
+                    text = text.toUpperCase(); // COMPLEX / ZŁOŻONE
+                }
+
                 let fontSize = Math.floor(shortSide * 0.15);
                 tCtx.font = `bold ${fontSize}px monospace`;
+
                 while (tCtx.measureText(text).width > sw * 0.7 && fontSize > 10) {
                     fontSize -= 2;
                     tCtx.font = `bold ${fontSize}px monospace`;
                 }
+
                 tCtx.textAlign = 'center';
                 tCtx.textBaseline = 'middle';
                 tCtx.fillStyle = '#ffffff';
@@ -309,7 +325,7 @@
                 resolve({points: mapToScreen(extractPoints(data, sw, sh, null, false, 4)), isLight});
 
             } else {
-                // IMAGE: Using 0.65 instead of 0.75 for a much larger safety gutter
+                // IMAGE: Using 0.65 for a large safety gutter
                 const img = new Image();
                 img.crossOrigin = 'Anonymous';
                 img.onload = () => {
@@ -460,14 +476,17 @@
         document.body.style.background = bgIsLight ? "#FFFFFF" : "#000000";
 
         // 5. UI Elements Color Swap
-        // Includes: Select, Mode, Download, Home, and the new Scale Slider
+        const homeBtn = document.getElementById('homeBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
         const scaleSlider = document.getElementById('scaleSlider');
+
         const uiElements = [
             langSelect,
             modeBtn,
             downloadBtn,
-            scaleSlider,
-            document.querySelector('.home-btn[title="Back to Home"]')
+            fullscreenBtn,
+            homeBtn,
+            scaleSlider
         ];
 
         uiElements.forEach(el => {
@@ -485,8 +504,42 @@
             }
         });
 
-        // 6. Final Status & Global UI Styling
+        // 6. Home Button Emoji Toggle
+        if (homeBtn) {
+            if (bgIsLight) {
+                // White BG -> 🖕🏿 (Dark Skin)
+                homeBtn.innerHTML = "\u{1F595}\u{1F3FF}";
+            } else {
+                // Black BG -> 🖕🏻 (Light Skin)
+                homeBtn.innerHTML = "\u{1F595}\u{1F3FB}";
+            }
+        }
+
+        // 7. Fullscreen Button Emoji Toggle
+        if (fullscreenBtn) {
+            if (bgIsLight) {
+                // White BG -> ☕️ (Hot Beverage)
+                fullscreenBtn.innerHTML = "\u{2615}";
+            } else {
+                // Black BG -> 🍺 (Beer Mug)
+                fullscreenBtn.innerHTML = "\u{1F37A}";
+            }
+        }
+
+        // 8. Final Status & Global UI Styling
         status.style.color = uiColor;
+    }
+
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+            });
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
     }
 
     function animate() {
