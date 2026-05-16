@@ -27,20 +27,25 @@
             z-index: 1;
         }
 
-        /* Logic-driven class: used in init() */
         .word-node {
             position: absolute;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 600;
             padding: 10px 20px;
             border-radius: 999px;
-            background: #000;
-            color: #fff;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            cursor: pointer;
-            z-index: 5;
             white-space: nowrap;
-            user-select: none;
+            box-shadow: none;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+            transition: opacity 0.5s;
+            will-change: transform;
+            backface-visibility: hidden;
+
+            /* --- ADD THESE FOR INTERACTIVITY --- */
+            cursor: pointer; /* Shows the 'hand' on Linux */
+            user-select: none; /* Prevents text highlighting */
+            -webkit-user-select: none; /* Support for Chrome/Android */
+            -webkit-touch-callout: none; /* Disables long-press menu on mobile */
+            touch-action: manipulation; /* Optimizes for tapping, removes double-tap delay */
         }
 
         #ui-layer {
@@ -313,7 +318,8 @@
             if (n.x < 0 || n.x > window.innerWidth - n.el.offsetWidth) n.dx *= -1;
             if (n.y < 0 || n.y > window.innerHeight - n.el.offsetHeight) n.dy *= -1;
 
-            n.el.style.transform = `translate(${n.x}px, ${n.y}px)`;
+            // translate3d(x, y, z) triggers the GPU "layer" on Android
+            n.el.style.transform = `translate3d(${Math.round(n.x)}px, ${Math.round(n.y)}px, 0)`;
         });
         requestAnimationFrame(animate);
     }
