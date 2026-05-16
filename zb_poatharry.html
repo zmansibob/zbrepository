@@ -339,6 +339,7 @@
 
         // Fixed path logic for GitHub compatibility
         // Use a relative path without a leading slash
+        // for commit
         const relativePath = file.path.startsWith('/') ? file.path.substring(1) : file.path;
 
         // Layout alignment based on language
