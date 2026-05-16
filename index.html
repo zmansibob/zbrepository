@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>ZB - Floating Dictionary</title>
+    <link rel="manifest" href="/zbrepository/manifest.json">
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/zbrepository/img/zb_repicon_192.png">
+
+    <meta name="theme-color" content="#000000">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap');
 
@@ -485,6 +492,14 @@
 
     updateStoredUI();
     animate();
+    // Register the Service Worker to enable "Install app" on Android
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/zbrepository/sw.js')
+                .then(reg => console.log('ZB WC Service Worker registered!', reg.scope))
+                .catch(err => console.log('ZB WC Service Worker failed:', err));
+        });
+    }
 </script>
 </body>
 </html>
