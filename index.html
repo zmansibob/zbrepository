@@ -202,7 +202,6 @@
             color: #000;
         }
 
-        /* Using the attribute selector to prevent "unused" warnings */
         #stored-panel[class*="open"] {
             transform: translateY(0);
         }
@@ -285,6 +284,8 @@
                 <a href="zb_askey.html">ZB AsKey ?</a>
                 <a href="zb_voiceme.html">ZB VR??</a>
                 <a href="zb_wc_anime.html">ZB Anime</a>
+                <!-- NEW BUTTON LINK ADDED HERE -->
+                <a href="zb_poatharry.html">ZB Poet Harry</a>
                 <button onclick="document.getElementById('stored-panel').classList.add('open')">ZB SD</button>
             </div>
         </div>
@@ -312,7 +313,7 @@
 <div id="stored-panel">
     <div style="display: flex; align-items: center; padding: 10px 15px;">
         <button onclick="document.getElementById('stored-panel').classList.remove('open')"
-                style="padding: 10px; border: none; background: none; font-size: 24px; cursor: pointer;">✕
+                style="padding: 10px; border: none; background: none; font-size: 24px; cursor: pointer;">?
         </button>
 
         <button onclick="copyAllDictionary()" title="Copy All"
@@ -358,7 +359,6 @@
     const input = document.getElementById('word-input');
 
     function wrapComplexText(text) {
-        // Split by scheme characters, keeping them in the array, and remove empty results
         const tokens = text.split(/([ .,;"@])/g).filter(t => t !== "");
 
         return tokens.map((token, index) => {
@@ -368,13 +368,10 @@
                 const isStart = index === 0;
                 const isEnd = index === tokens.length - 1;
 
-                // Only apply the <span> if the symbol is at the very beginning or very end
                 if (isStart || isEnd) {
                     return `<span class="${theme.class}" style="padding: 0 4px; border-radius: 4px;">${token}</span>`;
                 }
             }
-
-            // If it's not a scheme character, OR it's in the middle, return raw text
             return token;
         }).join('');
     }
@@ -385,7 +382,7 @@
             <div class="stored-item ${item.zClass || ''}" style="background:${item.color}; color:${item.textColor};">
                 ${wrapComplexText(item.text)}
                 <span onclick="copyToClipboard('${item.text.replace(/'/g, "\\'")}')"
-                      style="position: absolute; right: 8px; cursor: pointer; opacity: 0.7; font-size: 16px;">📋</span>
+                      style="position: absolute; right: 8px; cursor: pointer; opacity: 0.7; font-size: 16px;">?</span>
             </div>
         `).join('');
     }
@@ -473,7 +470,6 @@
             n.y += n.dy;
             if (n.x < 0 || n.x > window.innerWidth - 100) n.dx *= -1;
             if (n.y < 0 || n.y > window.innerHeight - 200) n.dy *= -1;
-            // Rounding x/y prevents "Float px" warnings
             n.el.style.transform = `translate(${Math.round(n.x)}px, ${Math.round(n.y)}px)`;
         });
         requestAnimationFrame(animate);

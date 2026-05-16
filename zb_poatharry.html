@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ZB - Poet Harry</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&family=Rubik:wght@400;600;900&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            height: 100vh;
+            font-family: 'Inter', 'Rubik', sans-serif;
+            overflow: hidden;
+            background: #f4f4f9;
+            color: #000;
+        }
+
+        /* The background area where bubbles live */
+        #field {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+
+        .word-node {
+            position: absolute;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 999px;
+            background: #000;
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            z-index: 5;
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        /* UI Layer - Search and Back button */
+        #ui-layer {
+            position: fixed; /* 'fixed' is safer for HUDs than 'absolute' */
+            inset: 0;
+            z-index: 100; /* Increased from 10 to 100 to stay in front of bubbles */
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        #ui-layer > * {
+            pointer-events: auto;
+        }
+
+        #topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(244, 244, 249, 0.9); /* Matches body color but slightly opaque */
+            padding: 10px;
+            border-radius: 15px;
+        }
+
+        #logo {
+            font-weight: 500;
+            font-size: 16px;
+        }
+
+        #word-input {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto 20px;
+            padding: 15px 25px;
+            border-radius: 999px;
+            display: block;
+            outline: none;
+            text-align: center;
+            font-size: 16px;
+
+            /* New Dark/Opaque Styling */
+            background: rgba(20, 20, 20, 0.85); /* Dark charcoal at 85% opacity */
+            color: #ffffff; /* White text for typing */
+            border: 1px solid rgba(255, 255, 255, 0.2); /* Soft light edge */
+
+            /* Glass Effect: Blurs bubbles as they pass behind */
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        /* This makes the "Search poems..." placeholder text light and elegant */
+        #word-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Optional: Slight glow when you click to type */
+        #word-input:focus {
+            border-color: rgba(255, 255, 255, 0.5);
+            background: rgba(0, 0, 0, 0.95);
+        }
+
+        /* --- THE POP-UP READER --- */
+        #reader-overlay {
+            position: fixed;
+            inset: 0;
+            background: #fff;
+            z-index: 100;
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            padding: 40px 20px;
+        }
+
+        #reader-overlay.active {
+            display: flex;
+        }
+
+        #reader-header {
+            max-width: 700px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+
+        #reader-title {
+            font-size: 24px;
+            font-weight: 900;
+            padding-right: 20px;
+        }
+
+        #close-btn {
+            background: #ff0000;
+            color: #000000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        #reader-body {
+            max-width: 700px;
+            margin: 0 auto;
+            width: 100%;
+            flex: 1;
+            overflow-y: auto; /* This makes the text scrollable */
+            font-size: 18px;
+            line-height: 1.7;
+            white-space: pre-wrap; /* Keeps the line breaks from your txt files */
+        }
+
+        .rtl {
+            direction: rtl;
+            text-align: right;
+        }
+
+        .btn-home {
+            text-decoration: none;
+            color: #ffffff !important;
+            background: rgba(20, 20, 20, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+
+            /* Perfect Circle */
+            width: 70px; /* Slightly larger to fit the text comfortably */
+            height: 70px;
+            border-radius: 50%;
+
+            /* Layout: Vertical Stack */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+
+            transition: all 0.3s ease;
+            z-index: 110;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Styling the individual parts */
+        .btn-text-top, .btn-text-bottom {
+            font-size: 10px; /* Small and clean */
+            font-weight: 900;
+            letter-spacing: 1px;
+            opacity: 0.9;
+        }
+
+        .btn-om {
+            font-size: 20px;
+            line-height: 1.2;
+            margin: -2px 0; /* Tightens the vertical space */
+        }
+
+        .btn-home:hover {
+            background: rgba(0, 0, 0, 1);
+            transform: scale(1.05);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+<div id="field"></div>
+
+<div id="ui-layer">
+    <div id="topbar">
+        <div id="logo">ZB / Po Hat Hair He זיבי \ פו כובע משוער</div>
+        <a href="index.html" class="btn-home" title="Back Home">
+            <span class="btn-text-top">HॐE</span>
+            <span class="btn-om">ॐ</span>
+            <span class="btn-text-bottom">תॐב</span>
+        </a>
+    </div>
+    <input id="word-input" type="text" placeholder="Search poems...">
+</div>
+
+<div id="reader-overlay">
+    <div id="reader-header">
+        <div id="reader-title">Title</div>
+        <button id="close-btn" onclick="closeReader()">red ✕ נקרע</button>
+    </div>
+    <div id="reader-body">Content goes here...</div>
+</div>
+
+<script>
+    let nodes = [];
+    let fileCatalog = [];
+    const field = document.getElementById('field');
+    const input = document.getElementById('word-input');
+
+    // Load the JSON map generated by your Python script
+    async function init() {
+        try {
+            const resp = await fetch('zb_poatharry.json');
+            fileCatalog = await resp.json();
+
+            fileCatalog.forEach(file => {
+                const el = document.createElement('div');
+                el.className = 'word-node';
+                if (file.lang === 'he') el.classList.add('rtl');
+                el.textContent = file.title;
+
+                // CLICK HANDLER
+                el.onclick = () => openReader(file);
+
+                field.appendChild(el);
+
+                nodes.push({
+                    el,
+                    file,
+                    x: Math.random() * (window.innerWidth - 200),
+                    y: Math.random() * (window.innerHeight - 200),
+                    dx: (Math.random() - 0.5) * 1.5,
+                    dy: (Math.random() - 0.5) * 1.5,
+                    visible: true
+                });
+            });
+            animate();
+        } catch (e) {
+            console.error("Error loading catalog:", e);
+        }
+    }
+
+    function animate() {
+        nodes.forEach(n => {
+            if (!n.visible) return;
+            n.x += n.dx;
+            n.y += n.dy;
+
+            if (n.x < 0 || n.x > window.innerWidth - n.el.offsetWidth) n.dx *= -1;
+            if (n.y < 0 || n.y > window.innerHeight - n.el.offsetHeight) n.dy *= -1;
+
+            n.el.style.transform = `translate(${n.x}px, ${n.y}px)`;
+        });
+        requestAnimationFrame(animate);
+    }
+
+    input.oninput = () => {
+        const val = input.value.toLowerCase();
+        nodes.forEach(n => {
+            n.visible = n.file.title.toLowerCase().includes(val);
+            n.el.style.display = n.visible ? 'block' : 'none';
+        });
+    };
+
+    async function openReader(file) {
+        const overlay = document.getElementById('reader-overlay');
+        const body = document.getElementById('reader-body');
+        const title = document.getElementById('reader-title');
+
+        title.textContent = file.title;
+        body.textContent = "Loading...";
+
+        // Handle RTL for Hebrew
+        if (file.lang === 'he') {
+            body.classList.add('rtl');
+            title.classList.add('rtl');
+            document.getElementById('reader-header').classList.add('rtl');
+        } else {
+            body.classList.remove('rtl');
+            title.classList.remove('rtl');
+            document.getElementById('reader-header').classList.remove('rtl');
+        }
+
+        overlay.classList.add('active');
+
+        try {
+            const resp = await fetch(file.path);
+            const text = await resp.text();
+            body.textContent = text;
+        } catch (e) {
+            body.textContent = "Error loading text.";
+        }
+    }
+
+    function closeReader() {
+        document.getElementById('reader-overlay').classList.remove('active');
+    }
+
+    init();
+</script>
+
+</body>
+</html>
