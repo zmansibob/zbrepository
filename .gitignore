@@ -13,3 +13,4 @@ audio_cache/
 # Model files (if any are downloaded locally)
 *.pth
 *.json
+!zb_poatharry.json
