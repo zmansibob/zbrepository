@@ -1,0 +1,21 @@
+{
+  "short_name": "zbRep",
+  "name": "ZB WC Repository",
+  "icons": [
+    {
+      "src": "img/zb_repicon_192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "img/zb_repicon_512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/zbrepository/index.html",
+  "background_color": "#f4f4f9",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "scope": "/zbrepository/"
+}
