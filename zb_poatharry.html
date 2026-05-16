@@ -21,13 +21,13 @@
             color: #000;
         }
 
-        /* The background area where bubbles live */
         #field {
             position: absolute;
             inset: 0;
             z-index: 1;
         }
 
+        /* Logic-driven class: used in init() */
         .word-node {
             position: absolute;
             font-size: 14px;
@@ -43,11 +43,10 @@
             user-select: none;
         }
 
-        /* UI Layer - Search and Back button */
         #ui-layer {
-            position: fixed; /* 'fixed' is safer for HUDs than 'absolute' */
+            position: fixed;
             inset: 0;
-            z-index: 100; /* Increased from 10 to 100 to stay in front of bubbles */
+            z-index: 100;
             pointer-events: none;
             display: flex;
             flex-direction: column;
@@ -63,7 +62,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: rgba(244, 244, 249, 0.9); /* Matches body color but slightly opaque */
+            background: rgba(244, 244, 249, 0.9);
             padding: 10px;
             border-radius: 15px;
         }
@@ -76,92 +75,125 @@
         #word-input {
             width: 100%;
             max-width: 500px;
-            margin: 0 auto 20px;
+            margin: 0 auto 20px; /* Optimized shorthand */
             padding: 15px 25px;
             border-radius: 999px;
             display: block;
             outline: none;
             text-align: center;
             font-size: 16px;
-
-            /* New Dark/Opaque Styling */
-            background: rgba(20, 20, 20, 0.85); /* Dark charcoal at 85% opacity */
-            color: #ffffff; /* White text for typing */
-            border: 1px solid rgba(255, 255, 255, 0.2); /* Soft light edge */
-
-            /* Glass Effect: Blurs bubbles as they pass behind */
+            background: rgba(20, 20, 20, 0.85);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             transition: all 0.3s ease;
         }
 
-        /* This makes the "Search poems..." placeholder text light and elegant */
         #word-input::placeholder {
             color: rgba(255, 255, 255, 0.5);
         }
 
-        /* Optional: Slight glow when you click to type */
         #word-input:focus {
             border-color: rgba(255, 255, 255, 0.5);
             background: rgba(0, 0, 0, 0.95);
         }
 
-        /* --- THE POP-UP READER --- */
         #reader-overlay {
             position: fixed;
             inset: 0;
             background: #fff;
-            z-index: 100;
-            display: none; /* Hidden by default */
+            z-index: 200;
+            display: none;
             flex-direction: column;
             padding: 40px 20px;
         }
 
+        /* Logic-driven class: used in openReader() */
         #reader-overlay.active {
             display: flex;
         }
 
         #reader-header {
             max-width: 700px;
-            margin: 0 auto;
+            margin: 0 auto 20px; /* Optimized shorthand */
             width: 100%;
             display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
             border-bottom: 2px solid #eee;
             padding-bottom: 20px;
-            margin-bottom: 20px;
         }
 
         #reader-title {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 900;
-            padding-right: 20px;
+            padding: 8px 15px;
+            background-color: #ffeb3b; /* Zmansi Yellow */
+            color: #000;
+            border-radius: 4px;
+            box-shadow: 3px 3px 0 #000;
+            width: fit-content;
+        }
+
+        /* Adjust button group for smaller screens */
+        #action-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        /* Make buttons slightly more compact for portrait but still tappable */
+        #copy-btn {
+            background-color: #2e7d32; /* Solid Green */
+            color: #fff;
         }
 
         #close-btn {
-            background: #ff0000;
-            color: #000000;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 999px;
-            cursor: pointer;
-            font-weight: 600;
+            background-color: #d50000; /* Solid Red */
+            color: #fff;
+        }
+
+        /* Hover logic using opacity as requested */
+        #copy-btn:hover, #close-btn:hover {
+            opacity: 0.8;
+            transform: scale(1.02);
+        }
+
+        #copy-btn:active, #close-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Desktop override to keep the side-by-side look on wide screens */
+        @media (min-width: 600px) {
+            #reader-header {
+                /* We remove flex-direction here and set it via JS */
+                align-items: center;
+            }
+
+            #reader-title {
+                font-size: 24px;
+            }
         }
 
         #reader-body {
             max-width: 700px;
-            margin: 0 auto;
+            margin: 0 auto; /* Optimized shorthand */
             width: 100%;
             flex: 1;
-            overflow-y: auto; /* This makes the text scrollable */
+            overflow-y: auto;
             font-size: 18px;
             line-height: 1.7;
-            white-space: pre-wrap; /* Keeps the line breaks from your txt files */
+            white-space: pre-wrap;
+            scroll-behavior: smooth;
+            will-change: scroll-position;
+            -webkit-overflow-scrolling: touch;
         }
 
+        /* Logic-driven class: used for Hebrew files */
         .rtl {
             direction: rtl;
             text-align: right;
@@ -172,18 +204,13 @@
             color: #ffffff !important;
             background: rgba(20, 20, 20, 0.85);
             border: 1px solid rgba(255, 255, 255, 0.2);
-
-            /* Perfect Circle */
-            width: 70px; /* Slightly larger to fit the text comfortably */
+            width: 70px;
             height: 70px;
             border-radius: 50%;
-
-            /* Layout: Vertical Stack */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-
             transition: all 0.3s ease;
             z-index: 110;
             backdrop-filter: blur(10px);
@@ -191,9 +218,8 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
 
-        /* Styling the individual parts */
         .btn-text-top, .btn-text-bottom {
-            font-size: 10px; /* Small and clean */
+            font-size: 10px;
             font-weight: 900;
             letter-spacing: 1px;
             opacity: 0.9;
@@ -202,7 +228,7 @@
         .btn-om {
             font-size: 20px;
             line-height: 1.2;
-            margin: -2px 0; /* Tightens the vertical space */
+            margin: -2px 0;
         }
 
         .btn-home:hover {
@@ -218,20 +244,23 @@
 
 <div id="ui-layer">
     <div id="topbar">
-        <div id="logo">ZB / Po Hat Hair He זיבי \ פו כובע משוער</div>
+        <div id="logo">ZB / Po Hat Hair He פו כובע משוער \ זיבי</div>
         <a href="index.html" class="btn-home" title="Back Home">
             <span class="btn-text-top">HॐE</span>
             <span class="btn-om">ॐ</span>
             <span class="btn-text-bottom">תॐב</span>
         </a>
     </div>
-    <input id="word-input" type="text" placeholder="Search poems...">
+    <input id="word-input" type="text" placeholder="Sea Arch ... חי להפסקה" aria-label="Search poems">
 </div>
 
 <div id="reader-overlay">
     <div id="reader-header">
         <div id="reader-title">Title</div>
-        <button id="close-btn" onclick="closeReader()">red ✕ נקרע</button>
+        <div id="action-group">
+            <button id="copy-btn" onclick="copyLyricText()">Cop He 📋 קוף הוא</button>
+            <button id="close-btn" onclick="closeReader()">red × נקרע</button>
+        </div>
     </div>
     <div id="reader-body">Content goes here...</div>
 </div>
@@ -239,10 +268,10 @@
 <script>
     let nodes = [];
     let fileCatalog = [];
+    let isPaused = false;
     const field = document.getElementById('field');
     const input = document.getElementById('word-input');
 
-    // Load the JSON map generated by your Python script
     async function init() {
         try {
             const resp = await fetch('zb_poatharry.json');
@@ -250,11 +279,9 @@
 
             fileCatalog.forEach(file => {
                 const el = document.createElement('div');
-                el.className = 'word-node';
+                el.className = 'word-node'; // Static scan might miss this
                 if (file.lang === 'he') el.classList.add('rtl');
                 el.textContent = file.title;
-
-                // CLICK HANDLER
                 el.onclick = () => openReader(file);
 
                 field.appendChild(el);
@@ -276,6 +303,8 @@
     }
 
     function animate() {
+        if (isPaused) return;
+
         nodes.forEach(n => {
             if (!n.visible) return;
             n.x += n.dx;
@@ -298,37 +327,66 @@
     };
 
     async function openReader(file) {
+        isPaused = true;
         const overlay = document.getElementById('reader-overlay');
         const body = document.getElementById('reader-body');
         const title = document.getElementById('reader-title');
+        const header = document.getElementById('reader-header');
 
         title.textContent = file.title;
-        body.textContent = "Loading...";
+        body.textContent = "טוען... Loading...";
+        body.scrollTop = 0;
 
-        // Handle RTL for Hebrew
+        // Fixed path logic for GitHub compatibility
+        // Use a relative path without a leading slash
+        const relativePath = file.path.startsWith('/') ? file.path.substring(1) : file.path;
+
+        // Layout alignment based on language
         if (file.lang === 'he') {
             body.classList.add('rtl');
             title.classList.add('rtl');
-            document.getElementById('reader-header').classList.add('rtl');
+            header.style.flexDirection = window.innerWidth > 600 ? "row-reverse" : "column";
         } else {
             body.classList.remove('rtl');
             title.classList.remove('rtl');
-            document.getElementById('reader-header').classList.remove('rtl');
+            header.style.flexDirection = window.innerWidth > 600 ? "row" : "column";
         }
 
         overlay.classList.add('active');
 
         try {
-            const resp = await fetch(file.path);
-            const text = await resp.text();
-            body.textContent = text;
+            // Cache-busting is essential for GitHub Pages updates
+            const resp = await fetch(`${relativePath}?v=${Date.now()}`);
+            if (!resp.ok) throw new Error(`HTTP error! status: ${resp.status}`);
+            body.textContent = await resp.text();
         } catch (e) {
-            body.textContent = "Error loading text.";
+            body.textContent = "Error: Could not find the poem on the server.";
+            console.error("Fetch failed:", e);
+        }
+    }
+
+    async function copyLyricText() {
+        const body = document.getElementById('reader-body');
+        const btn = document.getElementById('copy-btn');
+        const originalText = btn.textContent;
+
+        try {
+            await navigator.clipboard.writeText(body.textContent);
+            btn.textContent = "Copied! ✓";
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.classList.remove('copied');
+            }, 2000);
+        } catch (err) {
+            console.error('Failed to copy: ', err);
         }
     }
 
     function closeReader() {
         document.getElementById('reader-overlay').classList.remove('active');
+        isPaused = false;
+        animate();
     }
 
     init();
