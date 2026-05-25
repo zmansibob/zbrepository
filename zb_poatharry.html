@@ -1,403 +1,403 @@
-<!DOCTYPE html>
-<html lang="he">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ZB - Poet Harry</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&family=Rubik:wght@400;600;900&display=swap');
+    <!DOCTYPE html>
+    <html lang="he">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+        <title>ZB - Poet Harry</title>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&family=Rubik:wght@400;600;900&display=swap');
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
 
-        body {
-            height: 100vh;
-            font-family: 'Inter', 'Rubik', sans-serif;
-            overflow: hidden;
-            background: #f4f4f9;
-            color: #000;
-        }
+            body {
+                height: 100vh;
+                font-family: 'Inter', 'Rubik', sans-serif;
+                overflow: hidden;
+                background: #f4f4f9;
+                color: #000;
+            }
 
-        #field {
-            position: absolute;
-            inset: 0;
-            z-index: 1;
-        }
+            #field {
+                position: absolute;
+                inset: 0;
+                z-index: 1;
+            }
 
-        .word-node {
-            position: absolute;
-            font-size: 16px;
-            font-weight: 600;
-            padding: 10px 20px;
-            border-radius: 999px;
-            white-space: nowrap;
-            box-shadow: none;
-            border: 1px solid rgba(0, 0, 0, 0.15);
-            transition: opacity 0.5s;
-            will-change: transform;
-            backface-visibility: hidden;
+            .word-node {
+                position: absolute;
+                font-size: 16px;
+                font-weight: 600;
+                padding: 10px 20px;
+                border-radius: 999px;
+                white-space: nowrap;
+                box-shadow: none;
+                border: 1px solid rgba(0, 0, 0, 0.15);
+                transition: opacity 0.5s;
+                will-change: transform;
+                backface-visibility: hidden;
 
-            /* --- ADD THESE FOR INTERACTIVITY --- */
-            cursor: pointer; /* Shows the 'hand' on Linux */
-            user-select: none; /* Prevents text highlighting */
-            -webkit-user-select: none; /* Support for Chrome/Android */
-            -webkit-touch-callout: none; /* Disables long-press menu on mobile */
-            touch-action: manipulation; /* Optimizes for tapping, removes double-tap delay */
-        }
+                /* --- ADD THESE FOR INTERACTIVITY --- */
+                cursor: pointer; /* Shows the 'hand' on Linux */
+                user-select: none; /* Prevents text highlighting */
+                -webkit-user-select: none; /* Support for Chrome/Android */
+                -webkit-touch-callout: none; /* Disables long-press menu on mobile */
+                touch-action: manipulation; /* Optimizes for tapping, removes double-tap delay */
+            }
 
-        #ui-layer {
-            position: fixed;
-            inset: 0;
-            z-index: 100;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-        }
+            #ui-layer {
+                position: fixed;
+                inset: 0;
+                z-index: 100;
+                pointer-events: none;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                padding: 20px;
+            }
 
-        #ui-layer > * {
-            pointer-events: auto;
-        }
+            #ui-layer > * {
+                pointer-events: auto;
+            }
 
-        #topbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(244, 244, 249, 0.9);
-            padding: 10px;
-            border-radius: 15px;
-        }
-
-        #logo {
-            font-weight: 500;
-            font-size: 16px;
-        }
-
-        #word-input {
-            width: 100%;
-            max-width: 500px;
-            margin: 0 auto 20px; /* Optimized shorthand */
-            padding: 15px 25px;
-            border-radius: 999px;
-            display: block;
-            outline: none;
-            text-align: center;
-            font-size: 16px;
-            background: rgba(20, 20, 20, 0.85);
-            color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
-        }
-
-        #word-input::placeholder {
-            color: rgba(255, 255, 255, 0.5);
-        }
-
-        #word-input:focus {
-            border-color: rgba(255, 255, 255, 0.5);
-            background: rgba(0, 0, 0, 0.95);
-        }
-
-        #reader-overlay {
-            position: fixed;
-            inset: 0;
-            background: #fff;
-            z-index: 200;
-            display: none;
-            flex-direction: column;
-            padding: 40px 20px;
-        }
-
-        /* Logic-driven class: used in openReader() */
-        #reader-overlay.active {
-            display: flex;
-        }
-
-        #reader-header {
-            max-width: 700px;
-            margin: 0 auto 20px; /* Optimized shorthand */
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 20px;
-        }
-
-        #reader-title {
-            font-size: 22px;
-            font-weight: 900;
-            padding: 8px 15px;
-            background-color: #ffeb3b; /* Zmansi Yellow */
-            color: #000;
-            border-radius: 4px;
-            box-shadow: 3px 3px 0 #000;
-            width: fit-content;
-        }
-
-        /* Adjust button group for smaller screens */
-        #action-group {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            width: 100%;
-        }
-
-        /* Make buttons slightly more compact for portrait but still tappable */
-        #copy-btn {
-            background-color: #2e7d32; /* Solid Green */
-            color: #fff;
-        }
-
-        #close-btn {
-            background-color: #d50000; /* Solid Red */
-            color: #fff;
-        }
-
-        /* Hover logic using opacity as requested */
-        #copy-btn:hover, #close-btn:hover {
-            opacity: 0.8;
-            transform: scale(1.02);
-        }
-
-        #copy-btn:active, #close-btn:active {
-            transform: scale(0.98);
-        }
-
-        /* Desktop override to keep the side-by-side look on wide screens */
-        @media (min-width: 600px) {
-            #reader-header {
-                /* We remove flex-direction here and set it via JS */
+            #topbar {
+                display: flex;
+                justify-content: space-between;
                 align-items: center;
+                background: rgba(244, 244, 249, 0.9);
+                padding: 10px;
+                border-radius: 15px;
+            }
+
+            #logo {
+                font-weight: 500;
+                font-size: 16px;
+            }
+
+            #word-input {
+                width: 100%;
+                max-width: 500px;
+                margin: 0 auto 20px; /* Optimized shorthand */
+                padding: 15px 25px;
+                border-radius: 999px;
+                display: block;
+                outline: none;
+                text-align: center;
+                font-size: 16px;
+                background: rgba(20, 20, 20, 0.85);
+                color: #ffffff;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                transition: all 0.3s ease;
+            }
+
+            #word-input::placeholder {
+                color: rgba(255, 255, 255, 0.5);
+            }
+
+            #word-input:focus {
+                border-color: rgba(255, 255, 255, 0.5);
+                background: rgba(0, 0, 0, 0.95);
+            }
+
+            #reader-overlay {
+                position: fixed;
+                inset: 0;
+                background: #fff;
+                z-index: 200;
+                display: none;
+                flex-direction: column;
+                padding: 40px 20px;
+            }
+
+            /* Logic-driven class: used in openReader() */
+            #reader-overlay.active {
+                display: flex;
+            }
+
+            #reader-header {
+                max-width: 700px;
+                margin: 0 auto 20px; /* Optimized shorthand */
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 15px;
+                border-bottom: 2px solid #eee;
+                padding-bottom: 20px;
             }
 
             #reader-title {
-                font-size: 24px;
+                font-size: 22px;
+                font-weight: 900;
+                padding: 8px 15px;
+                background-color: #ffeb3b; /* Zmansi Yellow */
+                color: #000;
+                border-radius: 4px;
+                box-shadow: 3px 3px 0 #000;
+                width: fit-content;
+            }
+
+            /* Adjust button group for smaller screens */
+            #action-group {
+                display: flex;
+                gap: 10px;
+                justify-content: center;
+                width: 100%;
+            }
+
+            /* Make buttons slightly more compact for portrait but still tappable */
+            #copy-btn {
+                background-color: #2e7d32; /* Solid Green */
+                color: #fff;
+            }
+
+            #close-btn {
+                background-color: #d50000; /* Solid Red */
+                color: #fff;
+            }
+
+            /* Hover logic using opacity as requested */
+            #copy-btn:hover, #close-btn:hover {
+                opacity: 0.8;
+                transform: scale(1.02);
+            }
+
+            #copy-btn:active, #close-btn:active {
+                transform: scale(0.98);
+            }
+
+            /* Desktop override to keep the side-by-side look on wide screens */
+            @media (min-width: 600px) {
+                #reader-header {
+                    /* We remove flex-direction here and set it via JS */
+                    align-items: center;
+                }
+
+                #reader-title {
+                    font-size: 24px;
+                }
+            }
+
+            #reader-body {
+                max-width: 700px;
+                margin: 0 auto; /* Optimized shorthand */
+                width: 100%;
+                flex: 1;
+                overflow-y: auto;
+                font-size: 18px;
+                line-height: 1.7;
+                white-space: pre-wrap;
+                scroll-behavior: smooth;
+                will-change: scroll-position;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* Logic-driven class: used for Hebrew files */
+            .rtl {
+                direction: rtl;
+                text-align: right;
+            }
+
+            .btn-home {
+                text-decoration: none;
+                color: #ffffff !important;
+                background: rgba(20, 20, 20, 0.85);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                width: 70px;
+                height: 70px;
+                border-radius: 50%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.3s ease;
+                z-index: 110;
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            }
+
+            .btn-text-top, .btn-text-bottom {
+                font-size: 10px;
+                font-weight: 900;
+                letter-spacing: 1px;
+                opacity: 0.9;
+            }
+
+            .btn-om {
+                font-size: 20px;
+                line-height: 1.2;
+                margin: -2px 0;
+            }
+
+            .btn-home:hover {
+                background: rgba(0, 0, 0, 1);
+                transform: scale(1.05);
+                border-color: rgba(255, 255, 255, 0.5);
+            }
+        </style>
+    </head>
+    <body>
+
+    <div id="field"></div>
+
+    <div id="ui-layer">
+        <div id="topbar">
+            <div id="logo">ZB / Po Hat Hair He פו כובע משוער \ זיבי</div>
+            <a href="index.html" class="btn-home" title="Back Home">
+                <span class="btn-text-top">HॐE</span>
+                <span class="btn-om">ॐ</span>
+                <span class="btn-text-bottom">תॐב</span>
+            </a>
+        </div>
+        <input id="word-input" type="text" placeholder="Sea Arch ... חי להפסקה" aria-label="Search poems">
+    </div>
+
+    <div id="reader-overlay">
+        <div id="reader-header">
+            <div id="reader-title">Title</div>
+            <div id="action-group">
+                <button id="copy-btn" onclick="copyLyricText()">Cop He 📋 קוף הוא</button>
+                <button id="close-btn" onclick="closeReader()">red × נקרע</button>
+            </div>
+        </div>
+        <div id="reader-body">Content goes here...</div>
+    </div>
+
+    <script>
+        let nodes = [];
+        let fileCatalog = [];
+        let isPaused = false;
+        const field = document.getElementById('field');
+        const input = document.getElementById('word-input');
+
+        async function init() {
+            try {
+                const resp = await fetch('zb_poatharry.json');
+                fileCatalog = await resp.json();
+
+                fileCatalog.forEach(file => {
+                    const el = document.createElement('div');
+                    el.className = 'word-node'; // Static scan might miss this
+                    if (file.lang === 'he') el.classList.add('rtl');
+                    el.textContent = file.title;
+                    el.onclick = () => openReader(file);
+
+                    field.appendChild(el);
+
+                    nodes.push({
+                        el,
+                        file,
+                        x: Math.random() * (window.innerWidth - 200),
+                        y: Math.random() * (window.innerHeight - 200),
+                        dx: (Math.random() - 0.5) * 1.5,
+                        dy: (Math.random() - 0.5) * 1.5,
+                        visible: true
+                    });
+                });
+                animate();
+            } catch (e) {
+                console.error("Error loading catalog:", e);
             }
         }
 
-        #reader-body {
-            max-width: 700px;
-            margin: 0 auto; /* Optimized shorthand */
-            width: 100%;
-            flex: 1;
-            overflow-y: auto;
-            font-size: 18px;
-            line-height: 1.7;
-            white-space: pre-wrap;
-            scroll-behavior: smooth;
-            will-change: scroll-position;
-            -webkit-overflow-scrolling: touch;
-        }
+        function animate() {
+            if (isPaused) return;
 
-        /* Logic-driven class: used for Hebrew files */
-        .rtl {
-            direction: rtl;
-            text-align: right;
-        }
+            nodes.forEach(n => {
+                if (!n.visible) return;
+                n.x += n.dx;
+                n.y += n.dy;
 
-        .btn-home {
-            text-decoration: none;
-            color: #ffffff !important;
-            background: rgba(20, 20, 20, 0.85);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            z-index: 110;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        }
+                if (n.x < 0 || n.x > window.innerWidth - n.el.offsetWidth) n.dx *= -1;
+                if (n.y < 0 || n.y > window.innerHeight - n.el.offsetHeight) n.dy *= -1;
 
-        .btn-text-top, .btn-text-bottom {
-            font-size: 10px;
-            font-weight: 900;
-            letter-spacing: 1px;
-            opacity: 0.9;
-        }
-
-        .btn-om {
-            font-size: 20px;
-            line-height: 1.2;
-            margin: -2px 0;
-        }
-
-        .btn-home:hover {
-            background: rgba(0, 0, 0, 1);
-            transform: scale(1.05);
-            border-color: rgba(255, 255, 255, 0.5);
-        }
-    </style>
-</head>
-<body>
-
-<div id="field"></div>
-
-<div id="ui-layer">
-    <div id="topbar">
-        <div id="logo">ZB / Po Hat Hair He פו כובע משוער \ זיבי</div>
-        <a href="index.html" class="btn-home" title="Back Home">
-            <span class="btn-text-top">HॐE</span>
-            <span class="btn-om">ॐ</span>
-            <span class="btn-text-bottom">תॐב</span>
-        </a>
-    </div>
-    <input id="word-input" type="text" placeholder="Sea Arch ... חי להפסקה" aria-label="Search poems">
-</div>
-
-<div id="reader-overlay">
-    <div id="reader-header">
-        <div id="reader-title">Title</div>
-        <div id="action-group">
-            <button id="copy-btn" onclick="copyLyricText()">Cop He 📋 קוף הוא</button>
-            <button id="close-btn" onclick="closeReader()">red × נקרע</button>
-        </div>
-    </div>
-    <div id="reader-body">Content goes here...</div>
-</div>
-
-<script>
-    let nodes = [];
-    let fileCatalog = [];
-    let isPaused = false;
-    const field = document.getElementById('field');
-    const input = document.getElementById('word-input');
-
-    async function init() {
-        try {
-            const resp = await fetch('zb_poatharry.json');
-            fileCatalog = await resp.json();
-
-            fileCatalog.forEach(file => {
-                const el = document.createElement('div');
-                el.className = 'word-node'; // Static scan might miss this
-                if (file.lang === 'he') el.classList.add('rtl');
-                el.textContent = file.title;
-                el.onclick = () => openReader(file);
-
-                field.appendChild(el);
-
-                nodes.push({
-                    el,
-                    file,
-                    x: Math.random() * (window.innerWidth - 200),
-                    y: Math.random() * (window.innerHeight - 200),
-                    dx: (Math.random() - 0.5) * 1.5,
-                    dy: (Math.random() - 0.5) * 1.5,
-                    visible: true
-                });
+                // translate3d(x, y, z) triggers the GPU "layer" on Android
+                n.el.style.transform = `translate3d(${Math.round(n.x)}px, ${Math.round(n.y)}px, 0)`;
             });
+            requestAnimationFrame(animate);
+        }
+
+        input.oninput = () => {
+            const val = input.value.toLowerCase();
+            nodes.forEach(n => {
+                n.visible = n.file.title.toLowerCase().includes(val);
+                n.el.style.display = n.visible ? 'block' : 'none';
+            });
+        };
+
+        async function openReader(file) {
+            isPaused = true;
+            const overlay = document.getElementById('reader-overlay');
+            const body = document.getElementById('reader-body');
+            const title = document.getElementById('reader-title');
+            const header = document.getElementById('reader-header');
+
+            title.textContent = file.title;
+            body.textContent = "טוען... Loading...";
+            body.scrollTop = 0;
+
+            // Fixed path logic for GitHub compatibility
+            // Use a relative path without a leading slash
+            // for commit
+            const relativePath = file.path.startsWith('/') ? file.path.substring(1) : file.path;
+
+            // Layout alignment based on language
+            if (file.lang === 'he') {
+                body.classList.add('rtl');
+                title.classList.add('rtl');
+                header.style.flexDirection = window.innerWidth > 600 ? "row-reverse" : "column";
+            } else {
+                body.classList.remove('rtl');
+                title.classList.remove('rtl');
+                header.style.flexDirection = window.innerWidth > 600 ? "row" : "column";
+            }
+
+            overlay.classList.add('active');
+
+            try {
+                // Cache-busting is essential for GitHub Pages updates
+                const resp = await fetch(`${relativePath}?v=${Date.now()}`);
+                if (!resp.ok) throw new Error(`HTTP error! status: ${resp.status}`);
+                body.textContent = await resp.text();
+            } catch (e) {
+                body.textContent = "Error: Could not find the poem on the server.";
+                console.error("Fetch failed:", e);
+            }
+        }
+
+        async function copyLyricText() {
+            const body = document.getElementById('reader-body');
+            const btn = document.getElementById('copy-btn');
+            const originalText = btn.textContent;
+
+            try {
+                await navigator.clipboard.writeText(body.textContent);
+                btn.textContent = "Copied! ✓";
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy: ', err);
+            }
+        }
+
+        function closeReader() {
+            document.getElementById('reader-overlay').classList.remove('active');
+            isPaused = false;
             animate();
-        } catch (e) {
-            console.error("Error loading catalog:", e);
-        }
-    }
-
-    function animate() {
-        if (isPaused) return;
-
-        nodes.forEach(n => {
-            if (!n.visible) return;
-            n.x += n.dx;
-            n.y += n.dy;
-
-            if (n.x < 0 || n.x > window.innerWidth - n.el.offsetWidth) n.dx *= -1;
-            if (n.y < 0 || n.y > window.innerHeight - n.el.offsetHeight) n.dy *= -1;
-
-            // translate3d(x, y, z) triggers the GPU "layer" on Android
-            n.el.style.transform = `translate3d(${Math.round(n.x)}px, ${Math.round(n.y)}px, 0)`;
-        });
-        requestAnimationFrame(animate);
-    }
-
-    input.oninput = () => {
-        const val = input.value.toLowerCase();
-        nodes.forEach(n => {
-            n.visible = n.file.title.toLowerCase().includes(val);
-            n.el.style.display = n.visible ? 'block' : 'none';
-        });
-    };
-
-    async function openReader(file) {
-        isPaused = true;
-        const overlay = document.getElementById('reader-overlay');
-        const body = document.getElementById('reader-body');
-        const title = document.getElementById('reader-title');
-        const header = document.getElementById('reader-header');
-
-        title.textContent = file.title;
-        body.textContent = "טוען... Loading...";
-        body.scrollTop = 0;
-
-        // Fixed path logic for GitHub compatibility
-        // Use a relative path without a leading slash
-        // for commit
-        const relativePath = file.path.startsWith('/') ? file.path.substring(1) : file.path;
-
-        // Layout alignment based on language
-        if (file.lang === 'he') {
-            body.classList.add('rtl');
-            title.classList.add('rtl');
-            header.style.flexDirection = window.innerWidth > 600 ? "row-reverse" : "column";
-        } else {
-            body.classList.remove('rtl');
-            title.classList.remove('rtl');
-            header.style.flexDirection = window.innerWidth > 600 ? "row" : "column";
         }
 
-        overlay.classList.add('active');
+        init();
+    </script>
 
-        try {
-            // Cache-busting is essential for GitHub Pages updates
-            const resp = await fetch(`${relativePath}?v=${Date.now()}`);
-            if (!resp.ok) throw new Error(`HTTP error! status: ${resp.status}`);
-            body.textContent = await resp.text();
-        } catch (e) {
-            body.textContent = "Error: Could not find the poem on the server.";
-            console.error("Fetch failed:", e);
-        }
-    }
-
-    async function copyLyricText() {
-        const body = document.getElementById('reader-body');
-        const btn = document.getElementById('copy-btn');
-        const originalText = btn.textContent;
-
-        try {
-            await navigator.clipboard.writeText(body.textContent);
-            btn.textContent = "Copied! ✓";
-            btn.classList.add('copied');
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.classList.remove('copied');
-            }, 2000);
-        } catch (err) {
-            console.error('Failed to copy: ', err);
-        }
-    }
-
-    function closeReader() {
-        document.getElementById('reader-overlay').classList.remove('active');
-        isPaused = false;
-        animate();
-    }
-
-    init();
-</script>
-
-</body>
-</html>
+    </body>
+    </html>
