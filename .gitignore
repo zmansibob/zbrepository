@@ -10,6 +10,9 @@ __pycache__/
 # Local Audio Library (Do not upload generated wavs)
 audio_cache/
 
+# text bck
+# bcktxt/
+
 # Model files (if any are downloaded locally)
 *.pth
 *.json
