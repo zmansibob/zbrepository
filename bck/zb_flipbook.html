@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZB - Library Flipbook</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            color: #fff;
+        }
+
+        /* Sidebar Navigation */
+        #sidebar {
+            width: 280px;
+            background-color: #111;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            z-index: 15;
+        }
+
+        #sidebar-header {
+            padding: 20px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+        }
+
+        .back-link {
+            color: #007aff;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        #sidebar-header h2 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: -0.5px;
+        }
+
+        #book-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            list-style: none;
+            margin: 0;
+        }
+
+        .book-item {
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s, color 0.2s;
+            color: #aaa;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .book-item:hover {
+            background: #222;
+            color: #fff;
+        }
+
+        .book-item.active {
+            background: #007aff;
+            color: #fff;
+        }
+
+        /* Main Presentation Panel */
+        #main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Toolbar Header */
+        #toolbar {
+            background-color: #1a1a1a;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        .nav-btn {
+            background: #333;
+            color: white;
+            border: 1px solid #444;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: #444;
+        }
+        .nav-btn:disabled {
+            background: #222;
+            color: #555;
+            border-color: #222;
+            cursor: not-allowed;
+        }
+
+        #page-info {
+            font-size: 14px;
+            margin: 0 15px;
+        }
+
+        /* Flipbook Viewport Container */
+        #viewer-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: auto;
+            padding: 25px;
+            background: #1e1e1e;
+        }
+
+        /* Container keeping text overlay paired with canvas coordinates */
+        .page-container {
+            position: relative;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            background: white;
+            display: inline-block;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Interactive Text Layer Match */
+        .textLayer {
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            opacity: 0.2;
+            line-height: 1.0;
+        }
+    </style>
+</head>
+<body>
+
+<nav id="sidebar">
+    <div id="sidebar-header">
+        <a href="index.html" class="back-link">← ZBack</a>
+        <h2>ZB PDF Collection</h2>
+    </div>
+    <ul id="book-list">
+        </ul>
+</nav>
+
+<main id="main-content">
+    <div id="toolbar">
+        <div>
+            <button id="prev-page" class="nav-btn" disabled>Previous</button>
+            <span id="page-info">Page: <span id="current-num">0</span> / <span id="total-pages">0</span></span>
+            <button id="next-page" class="nav-btn">Next</button>
+        </div>
+        <a id="download-btn" href="#" download class="nav-btn" style="background:#34c759; border:none; text-decoration:none;">Download PDF</a>
+    </div>
+
+    <div id="viewer-container">
+        <div class="page-container" id="page-container">
+            <canvas id="pdf-canvas"></canvas>
+            <div id="text-layer" class="textLayer"></div>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // 1. Array containing your specific system files compiled in local zbpdf directory
+    const pdfDirectory = './zbpdf/';
+    const books = [
+        { file: 'fitgameng.pdf', title: 'from IT to GuruG and MataG' },
+        { file: 'fitgamheb.pdf', title: 'מאייטי אל גורוגי ומטאגי' },
+        { file: 'isofgeng.pdf', title: 'In Search of Google' },
+        { file: 'isofgheb.pdf', title: 'בחיפוש אחר גוגל' },
+        { file: 'isofgch.pdf', title: 'בחיפוש אחר טרנזקציות גוגל' },
+        { file: 'kolshaonheb.pdf', title: 'קול שעון' },
+        { file: 'lyrics.pdf', title: 'Lyrמי' }
+    ];
+
+    let pdfDoc = null,
+        pageNum = 1,
+        pageRendering = false,
+        pageNumPending = null,
+        scale = 1.5,
+        canvas = document.getElementById('pdf-canvas'),
+        ctx = canvas.getContext('2d'),
+        textLayerDiv = document.getElementById('text-layer');
+
+    // 2. Generate side UI components instantly
+    const bookListContainer = document.getElementById('book-list');
+    books.forEach((book, index) => {
+        const li = document.createElement('li');
+        li.className = 'book-item' + (index === 0 ? ' active' : '');
+        li.textContent = book.title;
+        li.onclick = () => switchBook(book.file, li);
+        bookListContainer.appendChild(li);
+    });
+
+    /**
+     * Loads/Switches target files safely clearing visual buffers
+     */
+    function loadPDF(fileName) {
+        const fullPath = pdfDirectory + fileName;
+        document.getElementById('download-btn').href = fullPath;
+        pageNum = 1; // Reset to page one on load
+
+        pdfjsLib.getDocument(fullPath).promise.then(function(pdfDoc_Mini) {
+            pdfDoc = pdfDoc_Mini;
+            document.getElementById('total-pages').textContent = pdfDoc.numPages;
+            renderPage(pageNum);
+        }).catch(err => {
+            console.error("Target missing or execution error: ", err);
+            textLayerDiv.innerHTML = `<p style="color:red; padding:20px;">Could not locate document file inside execution path target: <b>${fullPath}</b></p>`;
+        });
+    }
+
+    function switchBook(fileName, element) {
+        document.querySelectorAll('.book-item').forEach(el => el.classList.remove('active'));
+        element.classList.add('active');
+        loadPDF(fileName);
+    }
+
+    /**
+     * Render Canvas view and apply text tracking layer mapping arrays
+     */
+    function renderPage(num) {
+        pageRendering = true;
+
+        pdfDoc.getPage(num).then(function(page) {
+            const viewport = page.getViewport({scale: scale});
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            const container = document.getElementById('page-container');
+            container.style.width = viewport.width + 'px';
+            container.style.height = viewport.height + 'px';
+            textLayerDiv.style.width = viewport.width + 'px';
+            textLayerDiv.style.height = viewport.height + 'px';
+
+            textLayerDiv.innerHTML = '';
+
+            const renderContext = { canvasContext: ctx, viewport: viewport };
+            const renderTask = page.render(renderContext);
+
+            renderTask.promise.then(function() {
+                pageRendering = false;
+                if (pageNumPending !== null) {
+                    renderPage(pageNumPending);
+                    pageNumPending = null;
+                }
+                return page.getTextContent();
+            }).then(function(textContent) {
+                // Renders precise text overlay layer (Native processing handling of RTL text directions)
+                pdfjsLib.renderTextLayer({
+                    textContentStream: textContent,
+                    container: textLayerDiv,
+                    viewport: viewport,
+                    textDivs: []
+                });
+            });
+        });
+
+        document.getElementById('current-num').textContent = num;
+        document.getElementById('prev-page').disabled = (num <= 1);
+        document.getElementById('next-page').disabled = (num >= pdfDoc.numPages);
+    }
+
+    function queueRenderPage(num) {
+        if (pageRendering) { pageNumPending = num; } else { renderPage(num); }
+    }
+
+    document.getElementById('prev-page').addEventListener('click', () => {
+        if (pageNum <= 1) return;
+        pageNum--;
+        queueRenderPage(pageNum);
+    });
+
+    document.getElementById('next-page').addEventListener('click', () => {
+        if (pdfDoc === null || pageNum >= pdfDoc.numPages) return;
+        pageNum++;
+        queueRenderPage(pageNum);
+    });
+
+    // Boot system loading the first book in index sequence automatically
+    loadPDF(books[0].file);
+</script>
+</body>
+</html>

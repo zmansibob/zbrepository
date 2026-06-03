@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZB - Interactive Library Flipbook</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            color: #fff;
+        }
+
+        /* Sidebar Navigation */
+        #sidebar {
+            width: 280px;
+            background-color: #111;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            z-index: 15;
+            flex-shrink: 0;
+        }
+
+        #sidebar-header {
+            padding: 20px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+        }
+
+        .back-link {
+            color: #007aff;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        #sidebar-header h2 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: -0.5px;
+        }
+
+        /* Clean Visible Debug Panel placed right under Sidebar title header */
+        #debug-panel {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .debug-badge {
+            font-size: 11px;
+            font-family: monospace;
+            padding: 5px 8px;
+            border-radius: 4px;
+            background: #222;
+            border: 1px solid #333;
+            display: block;
+            white-space: nowrap;
+        }
+
+        #book-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            list-style: none;
+            margin: 0;
+        }
+
+        .book-item {
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s, color 0.2s;
+            color: #aaa;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .book-item:hover {
+            background: #222;
+            color: #fff;
+        }
+
+        .book-item.active {
+            background: #007aff;
+            color: #fff;
+        }
+
+        /* Main Presentation Panel */
+        #main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: #1e1e1e;
+        }
+
+        /* Toolbar Header with Zoom controls and Jump Action */
+        #toolbar {
+            background-color: #1a1a1a;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            z-index: 10;
+            gap: 15px;
+            flex-shrink: 0;
+        }
+
+        .toolbar-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            background: #333;
+            color: white;
+            border: 1px solid #444;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: #444;
+        }
+        .nav-btn:disabled {
+            background: #222;
+            color: #555;
+            border-color: #222;
+            cursor: not-allowed;
+        }
+
+        #page-info {
+            font-size: 14px;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        /* Jump to Page input styling */
+        #jump-input {
+            background: #2b2b2b;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            outline: none;
+            font-size: 14px;
+            width: 110px;
+            text-align: center;
+            transition: border-color 0.3s;
+        }
+        #jump-input:focus {
+            border-color: #007aff;
+        }
+
+        /* Viewer Container Stage */
+        #viewer-container {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            position: relative;
+        }
+
+        /* Zoom Scaling Wrapper */
+        #zoom-wrapper {
+            transform-origin: center center;
+            transition: transform 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #flipbook {
+            display: none;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+        }
+
+        /* Page wrapper containing canvas and overlapping textLayer */
+        .page-container {
+            position: relative;
+            background: white;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .textLayer {
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            opacity: 0.25;
+            line-height: 1.0;
+            transform-origin: top left;
+        }
+    </style>
+</head>
+<body>
+
+<nav id="sidebar">
+    <div id="sidebar-header">
+        <a href="index.html" class="back-link">&lt;- ZBack</a>
+        <h2>ZBooksזבוקס</h2>
+
+        <div id="debug-panel">
+            <span id="script-version-tag" class="debug-badge" style="border-color: #333;">
+                <span style="color: #ffd83a; font-weight: bold;">Engine: </span>
+                <span style="color: #34c759;">v2.99-ColorScheme</span>
+            </span>
+            <span id="load-progress-tag" class="debug-badge" style="color: #ff453a; border-color: #4a1512;">
+                Loaded: 0/0
+            </span>
+        </div>
+    </div>
+    <ul id="book-list"></ul>
+</nav>
+
+<main id="main-content">
+    <div id="toolbar">
+        <div class="toolbar-section">
+            <button id="prev-page" class="nav-btn">Previous</button>
+            <span id="page-info">Page: <span id="current-num">0</span> / <span id="total-pages">0</span></span>
+            <button id="next-page" class="nav-btn">Next</button>
+        </div>
+
+        <div class="toolbar-section">
+            <label for="jump-input" style="font-size: 14px; color: #aaa; font-weight: 600;">Go to page:</label>
+            <input type="number" id="jump-input" placeholder="Page #" min="1" autocomplete="off">
+        </div>
+
+        <div class="toolbar-section">
+            <button id="zoom-out" class="nav-btn">- Zoom</button>
+            <button id="zoom-in" class="nav-btn">+ Zoom</button>
+            <a id="download-btn" href="#" download class="nav-btn" style="background:#34c759; border:none; text-decoration:none;">Download</a>
+        </div>
+    </div>
+
+    <div id="viewer-container">
+        <div id="zoom-wrapper">
+            <div id="flipbook"></div>
+        </div>
+    </div>
+</main>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    const pdfDirectory = './zbpdf/';
+    const books = [
+        { file: 'fitgameng.pdf', title: 'from IT to GuruG and MataG' },
+        { file: 'fitgamheb.pdf', title: 'מאיטי אל גורוגי ומטאגי' },
+        { file: 'isofgeng.pdf', title: 'In Search of Google' },
+        { file: 'isofgheb.pdf', title: 'בחיפוש אחר גוגל' },
+        { file: 'isofgch.pdf', title: 'בחיפוש אחר טרנזקציות גוגל' },
+        { file: 'kolshaonheb.pdf', title: 'קול שעון' },
+        { file: 'lyrics.pdf', title: 'מי Lyr' }
+    ];
+
+    let pdfDoc = null,
+        currentScale = 1.0,
+        renderScale = 1.5,
+        pagesLoadedCount = 0,
+        currentLoadingSessionId = 0;
+
+    // Build sidebar navigation links dynamically
+    const bookListContainer = document.getElementById('book-list');
+    books.forEach((book, index) => {
+        const li = document.createElement('li');
+        li.className = 'book-item' + (index === 0 ? ' active' : '');
+        li.textContent = book.title;
+        li.onclick = () => switchBook(book.file, li);
+        bookListContainer.appendChild(li);
+    });
+
+    function switchBook(fileName, element) {
+        $('.book-item').removeClass('active');
+        $(element).addClass('active');
+        loadPDF(fileName);
+    }
+
+    async function loadPDF(fileName) {
+        currentLoadingSessionId++;
+        const currentSession = currentLoadingSessionId;
+
+        const fullPath = pdfDirectory + fileName;
+        document.getElementById('download-btn').href = fullPath;
+
+        pagesLoadedCount = 0;
+
+        document.getElementById('jump-input').value = '';
+        document.getElementById('current-num').textContent = '0';
+        document.getElementById('total-pages').textContent = '0';
+        updateProgressUI(0, 0);
+
+        window._currentPage = 1;
+        window._totalPages = 0;
+
+        $('#flipbook').empty().css({width: '', height: '', display: 'none'});
+
+        try {
+            pdfDoc = await pdfjsLib.getDocument(fullPath).promise;
+            if (currentSession !== currentLoadingSessionId) return;
+
+            document.getElementById('total-pages').textContent = String(pdfDoc.numPages);
+            document.getElementById('jump-input').max = String(pdfDoc.numPages);
+            updateProgressUI(0, pdfDoc.numPages);
+            await buildFlipbookHTML(currentSession);
+        } catch (err) {
+            console.error("PDF Parsing Failure: ", err);
+            document.getElementById('viewer-container').innerHTML = `
+                <div style="color:red; padding:20px; background:#2a1a1a; border:1px solid #ff4444; border-radius:8px;">
+                    <p style="margin:0 0 10px 0; font-weight:bold;">Error Loading Document Target:</p>
+                    <code>${fullPath}</code>
+                    <p style="margin:10px 0 0 0; font-size:13px; color:#aaa;">Make sure the file exists exactly with this name inside your local 'zbpdf' folder.</p>
+                </div>`;
+        }
+    }
+
+    function updateProgressUI(current, total) {
+        const progressTag = document.getElementById('load-progress-tag');
+        if (progressTag) {
+            progressTag.textContent = `Loaded: ${current}/${total}`;
+
+            // Progress Tag Custom UI Color Rules State Assignment
+            if (current === total && total > 0) {
+                // Phase 2: Finished Parsing Context -> Blue Color
+                progressTag.style.color = "#007aff";
+                progressTag.style.borderColor = "#004499";
+            } else {
+                // Phase 1: Actively Loading/Counting Context -> Red Color
+                progressTag.style.color = "#ff453a";
+                progressTag.style.borderColor = "#4a1512";
+            }
+        }
+    }
+
+    async function buildFlipbookHTML(sessionToken) {
+        const $flipbook = $('#flipbook');
+
+        const samplePage = await pdfDoc.getPage(1);
+        const sampleViewport = samplePage.getViewport({ scale: 1.0 });
+
+        const targetHeight = Math.min(sampleViewport.height * 1.2, window.innerHeight - 160);
+        const aspectRatio = sampleViewport.width / sampleViewport.height;
+        const targetWidth = targetHeight * aspectRatio;
+
+        const totalPages = pdfDoc.numPages;
+
+        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+            const pageDiv = $(`
+                <div class="flip-page" id="page-wrapper-${pageNum}" style="display:${pageNum === 1 ? 'flex' : 'none'}; width:${targetWidth}px; height:${targetHeight}px; justify-content:center; align-items:center;">
+                    <div class="page-container" id="container-${pageNum}" style="width:${targetWidth}px; height:${targetHeight}px;">
+                        <canvas id="canvas-${pageNum}"></canvas>
+                        <div id="text-${pageNum}" class="textLayer"></div>
+                    </div>
+                </div>
+            `);
+            $flipbook.append(pageDiv);
+        }
+
+        $flipbook.css({ display: 'block', width: targetWidth + 'px', height: targetHeight + 'px' });
+
+        window._currentPage = 1;
+        window._totalPages = totalPages;
+        updatePageUI(1);
+
+        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+            if (sessionToken !== currentLoadingSessionId) break;
+            await renderPageSequential(pageNum, targetWidth, targetHeight, sampleViewport.width);
+        }
+    }
+
+    async function renderPageSequential(targetPageNum, width, height, baseWidth) {
+        try {
+            if (!pdfDoc) return;
+            const page = await pdfDoc.getPage(targetPageNum);
+
+            const canvas = document.getElementById(`canvas-${targetPageNum}`);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const textLayerDiv = document.getElementById(`text-${targetPageNum}`);
+
+            const canvasViewport = page.getViewport({ scale: renderScale });
+            canvas.width = canvasViewport.width;
+            canvas.height = canvasViewport.height;
+
+            const renderContext = { canvasContext: ctx, viewport: canvasViewport };
+            await page.render(renderContext).promise;
+
+            const textScale = width / baseWidth;
+            const textViewport = page.getViewport({ scale: textScale });
+
+            if (!textLayerDiv) return;
+            textLayerDiv.style.width = width + 'px';
+            textLayerDiv.style.height = height + 'px';
+
+            textLayerDiv.style.setProperty('--scale-factor', String(textScale));
+            textLayerDiv.innerHTML = '';
+
+            const textContent = await page.getTextContent();
+
+            await pdfjsLib.renderTextLayer({
+                textContentSource: textContent,
+                container: textLayerDiv,
+                viewport: textViewport,
+                textDivs: []
+            }).promise;
+
+            pagesLoadedCount++;
+            updateProgressUI(pagesLoadedCount, pdfDoc.numPages);
+        } catch (canvasErr) {
+            console.warn(`Thread skipped rendering step at page index: ${targetPageNum}`, canvasErr);
+        }
+    }
+
+    function updatePageUI(page) {
+        if (!pdfDoc) return;
+        document.getElementById('current-num').textContent = String(page);
+        document.getElementById('prev-page').disabled = (page <= 1);
+        document.getElementById('next-page').disabled = (page >= pdfDoc.numPages);
+    }
+
+    function goToPage(targetPage) {
+        if (!pdfDoc || targetPage < 1 || targetPage > window._totalPages) return;
+
+        $(`#page-wrapper-${window._currentPage}`).hide();
+        window._currentPage = targetPage;
+        $(`#page-wrapper-${window._currentPage}`).css('display', 'flex');
+        updatePageUI(window._currentPage);
+    }
+
+    document.getElementById('prev-page').onclick = function(e) {
+        e.preventDefault();
+        if (window._currentPage > 1) {
+            goToPage(window._currentPage - 1);
+        }
+    };
+
+    document.getElementById('next-page').onclick = function(e) {
+        e.preventDefault();
+        if (window._currentPage < window._totalPages) {
+            goToPage(window._currentPage + 1);
+        }
+    };
+
+    document.getElementById('jump-input').onkeydown = function(e) {
+        if (e.key === 'Enter') {
+            const val = parseInt(this.value, 10);
+            if (!isNaN(val) && val >= 1 && val <= window._totalPages) {
+                goToPage(val);
+            } else {
+                this.value = window._currentPage;
+            }
+        }
+    };
+
+    // Zoom
+    document.getElementById('zoom-in').onclick = () => {
+        if (currentScale < 2.2) {
+            currentScale += 0.2;
+            applyZoom();
+        }
+    };
+    document.getElementById('zoom-out').onclick = () => {
+        if (currentScale > 0.6) {
+            currentScale -= 0.2;
+            applyZoom();
+        }
+    };
+    function applyZoom() {
+        document.getElementById('zoom-wrapper').style.transform = `scale(${currentScale})`;
+    }
+
+    loadPDF(books[0].file);
+</script>
+</body>
+</html>

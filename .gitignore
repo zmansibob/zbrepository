@@ -12,6 +12,7 @@ audio_cache/
 
 # text bck
 # bcktxt/
+bck/
 
 # Model files (if any are downloaded locally)
 *.pth
