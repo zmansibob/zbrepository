@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zb-wcrep-v1.0.1'; // Increment this string to force android update cascades!
+const CACHE_NAME = 'zb-wcrep-v2.14'; // Increment this string to force android update cascades!
 
 const CORE_ASSETS = [
   '/zbrepository/', // Cache the root scope directly
